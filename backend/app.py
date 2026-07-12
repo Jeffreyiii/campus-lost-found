@@ -1,13 +1,13 @@
 """
 校园失物招领系统 - Flask 后端入口
-
-启动方式：
+启动方式:
     cd backend
     python app.py
-
-或使用 Flask CLI：
+或使用 Flask CLI:
     flask --app app run --debug
 """
+from dotenv import load_dotenv
+load_dotenv(override=True)
 
 from factory import create_app
 

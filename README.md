@@ -1,6 +1,6 @@
 # 校园失物招领系统
 
-基于 **Next.js 14 (App Router)** 前端 + **Flask** 后端的校园失物招领平台。
+基于 **Next.js 14 (App Router)** 前端 + **Flask** 后端 + **Supabase** 云数据库的校园失物招领平台。
 
 ## 项目结构
 
@@ -17,10 +17,12 @@ campus_lost_found/
 ├── backend/                    # Flask 后端
 │   ├── app.py                  # 后端启动入口
 │   ├── factory.py              # Flask 应用工厂
-│   ├── config.py               # 配置（含 Supabase 预留）
+│   ├── config.py               # 配置（含 Supabase）
 │   ├── routes/items.py         # 物品 API 路由
 │   ├── services/item_service.py # 业务逻辑层
-│   ├── db/supabase_client.py   # Supabase 客户端（预留）
+│   ├── db/
+│   │   ├── supabase_client.py  # Supabase 客户端
+│   │   └── schema.sql          # 建表 SQL 脚本
 │   └── requirements.txt        # Python 依赖
 └── package.json                # 前端依赖
 ```
@@ -29,49 +31,76 @@ campus_lost_found/
 
 - Node.js 18+ 和 npm
 - Python 3.10+
+- Supabase 账号（免费套餐即可）
 
 ## 安装与启动
 
 ### 一、前端（Next.js）
 
 ```bash
-# 1. 进入项目根目录
 cd campus_lost_found
-
-# 2. 安装前端依赖
 npm install
-
-# 3. 复制环境变量文件并按需修改
 copy .env.local.example .env.local
-
-# 4. 启动开发服务器（默认 http://localhost:3000）
 npm run dev
 ```
+
+前端地址：http://localhost:3000
 
 ### 二、后端（Flask）
 
 ```bash
-# 1. 进入 backend 目录
 cd backend
-
-# 2. 创建并激活 Python 虚拟环境（Windows）
 python -m venv venv
 venv\Scripts\activate
-
-# 3. 安装 Python 依赖
 pip install -r requirements.txt
-
-# 4. 复制环境变量文件（可选）
 copy .env.example .env
-
-# 5. 启动 Flask 后端（默认 http://localhost:5000）
 python app.py
 ```
 
+后端地址：http://localhost:5000
+
 ### 三、验证
 
-- 前端：浏览器访问 http://localhost:3000
-- 后端健康检查：http://localhost:5000/api/health
+- 健康检查：http://localhost:5000/api/health
+- 返回 `"storage": "supabase"` 表示已连接云数据库
+- 返回 `"storage": "memory"` 表示使用内存模式（未配置 Supabase）
+
+## Supabase 云数据库配置
+
+### 1. 创建 Supabase 项目
+
+1. 访问 [https://supabase.com](https://supabase.com) 注册并登录
+2. 点击 **New Project** 创建项目
+3. 等待数据库初始化完成
+
+### 2. 执行建表 SQL
+
+1. 进入项目 → **SQL Editor**
+2. 将 `backend/db/schema.sql` 的内容粘贴并执行
+3. 确认 `lost_items` 表创建成功
+
+### 3. 获取 API 密钥
+
+1. 进入 **Settings → API**
+2. 复制 **Project URL** → 填入 `SUPABASE_URL`
+3. 复制 **service_role** key（推荐后端使用）→ 填入 `SUPABASE_KEY`
+
+### 4. 配置后端环境变量
+
+编辑 `backend/.env`：
+
+```env
+SUPABASE_URL=https://xxxxx.supabase.co
+SUPABASE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+### 5. 重启后端
+
+```bash
+python app.py
+```
+
+访问 http://localhost:5000/api/health，确认 `storage` 为 `supabase`。
 
 ## API 接口
 
@@ -80,11 +109,11 @@ python app.py
 | POST   | /api/items        | 发布物品信息   |
 | GET    | /api/items        | 查询全部招领信息 |
 | DELETE | /api/items/:id    | 删除信息       |
+| GET    | /api/health       | 健康检查（含存储模式） |
 
-## 后续对接 Supabase
+## 存储模式说明
 
-1. 在 Supabase 控制台创建 `lost_items` 表（建表 SQL 见 `backend/db/supabase_client.py`）
-2. 安装依赖：`pip install supabase python-dotenv`
-3. 在 `backend/.env` 中配置 `SUPABASE_URL` 和 `SUPABASE_KEY`
-4. 实现 `backend/db/supabase_client.py` 中的客户端
-5. 在 `backend/services/item_service.py` 中替换内存存储为 Supabase 调用
+| 模式 | 触发条件 | 特点 |
+|------|----------|------|
+| `supabase` | `.env` 中配置了 URL 和 KEY | 数据持久化到云数据库 |
+| `memory` | 未配置 Supabase | 内存存储，重启后数据丢失，适合本地调试 |

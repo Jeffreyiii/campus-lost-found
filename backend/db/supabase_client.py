@@ -1,41 +1,44 @@
+
 """
-Supabase 数据库客户端（预留模块）
+Supabase 数据库客户端
 
-后续对接 Supabase 云数据库时：
-1. 在 Supabase 控制台创建 lost_items 表
-2. 安装依赖：pip install supabase
-3. 在 backend/.env 中配置 SUPABASE_URL 和 SUPABASE_KEY
-4. 取消下方注释并实现 get_supabase_client()
-5. 在 services/item_service.py 中替换内存存储为数据库调用
-
-建议的 lost_items 表结构（SQL）：
----------------------------------
-CREATE TABLE lost_items (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    title       TEXT NOT NULL,
-    description TEXT NOT NULL,
-    location    TEXT NOT NULL,
-    contact_name TEXT NOT NULL,
-    contact_phone TEXT NOT NULL,
-    item_type   TEXT NOT NULL CHECK (item_type IN ('lost', 'found')),
-    created_at  TIMESTAMPTZ DEFAULT NOW()
-);
----------------------------------
+使用方式：
+1. 在 Supabase 控制台执行 db/schema.sql 建表
+2. 在 backend/.env 中填写 SUPABASE_URL 和 SUPABASE_KEY
+3. 重启 Flask 后端，自动切换为云数据库存储
 """
 
-# from supabase import create_client, Client
-# from config import Config
+from functools import lru_cache
+from typing import TYPE_CHECKING
+
+from config import Config
+
+if TYPE_CHECKING:
+    from supabase import Client
 
 
-# def get_supabase_client() -> Client:
-#     """
-#     获取 Supabase 客户端单例
-#
-#     Returns:
-#         已配置的 Supabase Client 实例
-#     """
-#     if not Config.SUPABASE_URL or not Config.SUPABASE_KEY:
-#         raise RuntimeError(
-#             '请在环境变量中设置 SUPABASE_URL 和 SUPABASE_KEY'
-#         )
-#     return create_client(Config.SUPABASE_URL, Config.SUPABASE_KEY)
+@lru_cache(maxsize=1)
+def get_supabase_client() -> 'Client':
+    """
+    获取 Supabase 客户端单例（懒加载 + 缓存）
+
+    Returns:
+        已配置的 Supabase Client 实例
+
+    Raises:
+        RuntimeError: 未配置 Supabase 环境变量时抛出
+    """
+    if not Config.is_supabase_enabled():
+        raise RuntimeError(
+            'Supabase 未配置，请在 backend/.env 中设置 SUPABASE_URL 和 SUPABASE_KEY'
+        )
+
+    # 延迟导入，未安装 supabase 包时不影响内存模式启动
+    from supabase import create_client
+
+    return create_client(Config.SUPABASE_URL, Config.SUPABASE_KEY)
+
+
+def is_supabase_configured() -> bool:
+    """判断 Supabase 环境变量是否已配置"""
+    return Config.is_supabase_enabled()
