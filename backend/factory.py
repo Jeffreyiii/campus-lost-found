@@ -8,6 +8,8 @@ from flask_cors import CORS
 
 from config import Config
 from routes.items import items_bp
+from routes.auth import auth_bp
+from routes.admin import admin_bp
 from services.item_service import ItemService
 
 
@@ -23,19 +25,24 @@ def create_app() -> Flask:
 
     # 注册 API 路由蓝图
     app.register_blueprint(items_bp, url_prefix='/api/items')
+    app.register_blueprint(auth_bp, url_prefix='/api/auth')
+    app.register_blueprint(admin_bp, url_prefix='/api/admin')
 
     # 根路径 - 简易首页提示
     @app.route('/')
     def index():
         return {
             'name': '校园失物招领系统 API',
-            'version': '1.0.0',
+            'version': '2.0.0',
             'endpoints': {
                 'health': '/api/health',
-                'items': '/api/items',
-                'delete_item': '/api/items/<id>',
+                'register': 'POST /api/auth/register',
+                'login': 'POST /api/auth/login',
+                'items': 'GET /api/items',
+                'create_item': 'POST /api/items (需登录)',
+                'delete_item': 'DELETE /api/items/<id> (需登录)',
+                'admin_users': 'GET /api/admin/users (需管理员)',
             },
-            'docs': 'GET /api/items — 查询全部招领信息 | POST /api/items — 发布物品 | DELETE /api/items/<id> — 删除记录',
         }
 
     # 健康检查接口，返回运行状态与存储模式

@@ -26,6 +26,12 @@ class Config:
     # 密钥（生产环境请通过环境变量设置）
     SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
 
+    # JWT 签名密钥（用于签发和验证用户 Token）
+    JWT_SECRET = os.environ.get('JWT_SECRET', os.environ.get('SECRET_KEY', 'dev-jwt-secret'))
+
+    # JWT 过期时间（小时）
+    JWT_EXPIRATION_HOURS = int(os.environ.get('JWT_EXPIRATION_HOURS', '24'))
+
     # Supabase 云数据库配置
     SUPABASE_URL = os.environ.get('SUPABASE_URL', '')
     SUPABASE_KEY = os.environ.get('SUPABASE_KEY', '')

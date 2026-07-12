@@ -95,6 +95,7 @@ class ItemService:
             'contact_name': data['contact_name'],
             'contact_phone': data['contact_phone'],
             'item_type': data['item_type'],
+            'user_id': data.get('user_id'),
         }
         result = supabase.table(TABLE_NAME).insert(payload).execute()
         return result.data[0]
@@ -138,6 +139,7 @@ class ItemService:
         """向内存列表插入一条招领记录"""
         item = {
             'id': str(uuid.uuid4()),
+            'user_id': data.get('user_id'),
             'title': data['title'],
             'description': data['description'],
             'location': data['location'],

@@ -5,150 +5,253 @@ import { useRouter } from 'next/navigation';
 import {
   Form,
   Input,
-  Select,
   Button,
-  Card,
+  Select,
   Typography,
   message,
+  Card,
   Space,
+  Divider,
+  Row,
+  Col,
+  Steps,
+  Alert,
 } from 'antd';
+import {
+  InboxOutlined,
+  SendOutlined,
+  SafetyOutlined,
+  EnvironmentOutlined,
+  PhoneOutlined,
+  UserOutlined,
+  InfoCircleOutlined,
+  FileTextOutlined,
+  ArrowLeftOutlined,
+} from '@ant-design/icons';
 import { createLostItem } from '@/lib/api';
-import type { CreateLostItemPayload } from '@/types/lost-item';
+import { useAuth } from '@/lib/auth-context';
+import Link from 'next/link';
 
-const { Title } = Typography;
-const { TextArea } = Input;
+const { Title, Text, Paragraph } = Typography;
 
-/**
- * 发布招领信息表单页
- * 调用 POST /api/items 提交数据
- */
 export default function PublishPage() {
-  const [form] = Form.useForm<CreateLostItemPayload>();
+  const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
+  const [currentStep, setCurrentStep] = useState(0);
+  const { user } = useAuth();
   const router = useRouter();
 
-  /** 提交表单，发布招领信息 */
-  const handleSubmit = async (values: CreateLostItemPayload) => {
+  // 未登录跳转
+  if (!user && typeof window !== 'undefined') {
+    message.info('请先登录后再发布');
+    router.push('/login');
+    return null;
+  }
+
+  const handleSubmit = async (values: any) => {
     setSubmitting(true);
     try {
-      await createLostItem(values);
+      await createLostItem({
+        title: values.title,
+        description: values.description,
+        location: values.location,
+        contact_name: values.contact_name,
+        contact_phone: values.contact_phone,
+        item_type: values.item_type,
+      });
       message.success('发布成功！');
-      form.resetFields();
-      // 发布成功后跳转到列表页
       router.push('/items');
     } catch (error) {
-      message.error(error instanceof Error ? error.message : '发布失败，请重试');
+      message.error(error instanceof Error ? error.message : '发布失败');
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <div style={{ maxWidth: 640, margin: '0 auto' }}>
-      <Title level={2} style={{ marginBottom: 24 }}>
-        发布招领信息
-      </Title>
+    <div className="page-container animate-fade-in">
+      <div style={{ marginBottom: 24 }}>
+        <Link href="/items">
+          <Button type="text" icon={<ArrowLeftOutlined />} style={{ marginBottom: 12, fontWeight: 600, color: '#6B7280' }}>
+            返回列表
+          </Button>
+        </Link>
+        <Title level={3} style={{ marginBottom: 4, fontWeight: 700 }}>
+          <SendOutlined style={{ marginRight: 10, color: '#6C5CE7' }} />
+          发布招领信息
+        </Title>
+        <Text type="secondary">填写物品详细信息，帮助他人找到失物</Text>
+      </div>
 
-      <Card>
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleSubmit}
-          initialValues={{ item_type: 'found' }}
-        >
-          {/* 信息类型：失物招领 / 寻物启事 */}
-          <Form.Item
-            name="item_type"
-            label="信息类型"
-            rules={[{ required: true, message: '请选择信息类型' }]}
-          >
-            <Select
-              options={[
-                { value: 'found', label: '失物招领（我捡到了物品）' },
-                { value: 'lost', label: '寻物启事（我丢失了物品）' },
+      <Row gutter={[24, 24]}>
+        {/* 左侧表单 */}
+        <Col xs={24} lg={16}>
+          <Card style={{ borderRadius: 16, border: '1px solid #ECEEF5' }} styles={{ body: { padding: '28px 32px' } }}>
+            <Steps
+              current={currentStep}
+              onChange={setCurrentStep}
+              size="small"
+              style={{ marginBottom: 32 }}
+              items={[
+                { title: '填写信息', icon: <FileTextOutlined /> },
+                { title: '确认发布', icon: <SendOutlined /> },
               ]}
             />
-          </Form.Item>
 
-          {/* 物品名称 */}
-          <Form.Item
-            name="title"
-            label="物品名称"
-            rules={[
-              { required: true, message: '请输入物品名称' },
-              { max: 100, message: '名称不超过 100 字' },
-            ]}
-          >
-            <Input placeholder="例如：黑色钱包、校园卡、雨伞" />
-          </Form.Item>
+            <Form
+              form={form}
+              layout="vertical"
+              onFinish={handleSubmit}
+              size="large"
+              initialValues={{ item_type: 'found' }}
+            >
+              <Form.Item
+                name="item_type"
+                label={<span style={{ fontWeight: 600 }}>信息类型</span>}
+                rules={[{ required: true }]}
+              >
+                <Select
+                  options={[
+                    { value: 'found', label: '🔍 失物招领（捡到了物品）' },
+                    { value: 'lost', label: '📢 寻物启事（丢失了物品）' },
+                  ]}
+                />
+              </Form.Item>
 
-          {/* 物品描述 */}
-          <Form.Item
-            name="description"
-            label="物品描述"
-            rules={[
-              { required: true, message: '请输入物品描述' },
-              { max: 500, message: '描述不超过 500 字' },
-            ]}
-          >
-            <TextArea
-              rows={4}
-              placeholder="请描述物品特征、颜色、品牌等详细信息"
-              showCount
-              maxLength={500}
-            />
-          </Form.Item>
+              <Form.Item
+                name="title"
+                label={<span style={{ fontWeight: 600 }}>物品名称</span>}
+                rules={[{ required: true, message: '请输入物品名称' }]}
+              >
+                <Input
+                  prefix={<InboxOutlined style={{ color: '#A0A0B8' }} />}
+                  placeholder="例如：黑色钱包、校园卡"
+                  maxLength={50}
+                  showCount
+                />
+              </Form.Item>
 
-          {/* 拾取/丢失地点 */}
-          <Form.Item
-            name="location"
-            label="地点"
-            rules={[
-              { required: true, message: '请输入地点' },
-              { max: 200, message: '地点不超过 200 字' },
-            ]}
-          >
-            <Input placeholder="例如：图书馆三楼、食堂门口、教学楼 A 栋" />
-          </Form.Item>
+              <Form.Item
+                name="description"
+                label={<span style={{ fontWeight: 600 }}>详细描述</span>}
+                rules={[{ required: true, message: '请描述物品特征' }]}
+              >
+                <Input.TextArea
+                  placeholder="描述物品的颜色、品牌、特征等"
+                  rows={4}
+                  maxLength={500}
+                  showCount
+                />
+              </Form.Item>
 
-          {/* 联系人 */}
-          <Form.Item
-            name="contact_name"
-            label="联系人"
-            rules={[
-              { required: true, message: '请输入联系人姓名' },
-              { max: 50, message: '姓名不超过 50 字' },
-            ]}
-          >
-            <Input placeholder="您的姓名" />
-          </Form.Item>
+              <Row gutter={16}>
+                <Col xs={24} sm={12}>
+                  <Form.Item
+                    name="location"
+                    label={<span style={{ fontWeight: 600 }}>地点</span>}
+                    rules={[{ required: true, message: '请输入地点' }]}
+                  >
+                    <Input
+                      prefix={<EnvironmentOutlined style={{ color: '#A0A0B8' }} />}
+                      placeholder="捡到/丢失的地点"
+                    />
+                  </Form.Item>
+                </Col>
+                <Col xs={24} sm={12}>
+                  <Form.Item
+                    name="contact_name"
+                    label={<span style={{ fontWeight: 600 }}>联系人</span>}
+                    rules={[{ required: true, message: '请输入联系人' }]}
+                  >
+                    <Input
+                      prefix={<UserOutlined style={{ color: '#A0A0B8' }} />}
+                      placeholder="您的姓名或昵称"
+                    />
+                  </Form.Item>
+                </Col>
+              </Row>
 
-          {/* 联系电话 */}
-          <Form.Item
-            name="contact_phone"
-            label="联系电话"
-            rules={[
-              { required: true, message: '请输入联系电话' },
-              {
-                pattern: /^1[3-9]\d{9}$/,
-                message: '请输入有效的手机号码',
-              },
-            ]}
-          >
-            <Input placeholder="11 位手机号码" maxLength={11} />
-          </Form.Item>
+              <Form.Item
+                name="contact_phone"
+                label={<span style={{ fontWeight: 600 }}>联系电话</span>}
+                rules={[
+                  { required: true, message: '请输入联系电话' },
+                  { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号' },
+                ]}
+              >
+                <Input
+                  prefix={<PhoneOutlined style={{ color: '#A0A0B8' }} />}
+                  placeholder="手机号码"
+                />
+              </Form.Item>
 
-          {/* 提交按钮 */}
-          <Form.Item>
-            <Space>
-              <Button type="primary" htmlType="submit" loading={submitting}>
-                发布信息
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={submitting}
+                block
+                size="large"
+                icon={<SendOutlined />}
+                className="btn-gradient-primary"
+                style={{ height: 48, fontSize: 16, marginTop: 8 }}
+              >
+                确认发布
               </Button>
-              <Button onClick={() => form.resetFields()}>重置</Button>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Card>
+            </Form>
+          </Card>
+        </Col>
+
+        {/* 右侧提示 */}
+        <Col xs={24} lg={8}>
+          <Space direction="vertical" size={20} style={{ width: '100%' }}>
+            <Card style={{ borderRadius: 16, border: '1px solid #ECEEF5', background: '#F8F7FF' }}>
+              <Title level={5} style={{ fontWeight: 700, marginBottom: 16 }}>
+                <InfoCircleOutlined style={{ marginRight: 8, color: '#6C5CE7' }} />
+                发布指南
+              </Title>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {[
+                  { num: '01', title: '选择类型', desc: '捡到物品选"失物招领"，丢失选"寻物启事"' },
+                  { num: '02', title: '填写信息', desc: '尽量详细描述物品特征，方便失主辨认' },
+                  { num: '03', title: '留下联系方式', desc: '方便他人联系您，信息会进行安全保护' },
+                  { num: '04', title: '确认发布', desc: '检查无误后点击发布，信息将公开展示' },
+                ].map((step) => (
+                  <div key={step.num} style={{ display: 'flex', gap: 12 }}>
+                    <div style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: 8,
+                      background: '#EEEDFD',
+                      color: '#6C5CE7',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: 700,
+                      fontSize: 12,
+                      flexShrink: 0,
+                      marginTop: 2,
+                    }}>
+                      {step.num}
+                    </div>
+                    <div>
+                      <Text strong style={{ fontSize: 14 }}>{step.title}</Text>
+                      <Paragraph style={{ color: '#6B7280', fontSize: 13, marginBottom: 0 }}>{step.desc}</Paragraph>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            <Alert
+              message="安全提示"
+              description="为了保护您的隐私，请不要在描述中透露过多的个人信息。线下交接物品时，建议在人多的公共场所进行。"
+              type="info"
+              showIcon
+              style={{ borderRadius: 12 }}
+            />
+          </Space>
+        </Col>
+      </Row>
     </div>
   );
 }
