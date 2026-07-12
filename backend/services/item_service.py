@@ -8,7 +8,7 @@
 
 import uuid
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, List, Dict
 
 # TODO: 后续对接 Supabase 时取消注释
 # from db.supabase_client import get_supabase_client
@@ -19,9 +19,9 @@ class ItemService:
 
     def __init__(self):
         # 临时内存存储（开发阶段使用，重启后数据丢失）
-        self._items: list[dict] = []
+       self._items: List[Dict] = []
 
-    def create(self, data: dict) -> dict:
+    def create(self, data: Dict) -> Dict:
         """
         创建一条招领信息
 
@@ -51,7 +51,7 @@ class ItemService:
         self._items.append(item)
         return item
 
-    def get_all(self) -> list[dict]:
+    def get_all(self) -> List[Dict]:
         """
         获取全部招领信息，按发布时间倒序排列
 
