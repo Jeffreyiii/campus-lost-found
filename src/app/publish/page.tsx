@@ -19,6 +19,7 @@ import {
   Upload,
   Image,
   DatePicker,
+  Tag,
 } from 'antd';
 import {
   InboxOutlined,
