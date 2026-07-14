@@ -12,13 +12,14 @@ from dotenv import load_dotenv
 _env_path = Path(__file__).parent / '.env'
 load_dotenv(_env_path)
 
-# 调试打印，查看实际读到的值
+# 调试打印（仅在开发环境显示）
 raw_url = os.environ.get("SUPABASE_URL", "")
 raw_key = os.environ.get("SUPABASE_KEY", "")
-print("==========【DEBUG ENV】==========")
-print("URL:", repr(raw_url))
-print("KEY:", repr(raw_key))
-print("=================================")
+if os.environ.get('FLASK_DEBUG', 'True').lower() == 'true':
+    print("==========【DEBUG ENV】==========")
+    print("URL:", repr(raw_url[:20] + '...' if raw_url else '未设置'))
+    print("KEY:", repr('已设置' if raw_key else '未设置'))
+    print("=================================")
 
 class Config:
     """Flask 基础配置"""

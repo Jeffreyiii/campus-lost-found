@@ -5,6 +5,7 @@
 密码使用 bcrypt 哈希存储，token 使用 PyJWT 签发。
 """
 
+import re
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Optional
@@ -92,6 +93,8 @@ class AuthService:
         username = username.strip().lower()
         if not username or len(username) < 2:
             return {'success': False, 'message': '用户名至少需要 2 个字符'}
+        if not re.match(r'^[a-zA-Z0-9_]+$', username):
+            return {'success': False, 'message': '用户名仅支持字母、数字和下划线'}
         if not password or len(password) < 6:
             return {'success': False, 'message': '密码至少需要 6 个字符'}
 

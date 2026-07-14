@@ -21,6 +21,7 @@ def create_app() -> Flask:
     app.config.from_object(Config)
 
     # 允许前端跨域请求（Next.js 默认运行在 localhost:3000）
+    # 生产环境请将 origins 限制为实际域名，例如 ['https://yourdomain.com']
     CORS(app, resources={r'/api/*': {'origins': '*'}})
 
     # 注册 API 路由蓝图

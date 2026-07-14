@@ -95,7 +95,7 @@ export default function ItemDetailPage() {
     }
   };
 
-  const comments: Comment[] = (item as unknown as Record<string, unknown>)?.comments as Comment[] || [];
+  const comments: Comment[] = item?.comments ?? [];
 
   return (
     <div className="page-container animate-fade-in">

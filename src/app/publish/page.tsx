@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Form,
@@ -54,9 +54,14 @@ export default function PublishPage() {
   const router = useRouter();
 
   // 未登录跳转
-  if (!user && typeof window !== 'undefined') {
-    message.info('请先登录后再发布');
-    router.push('/login');
+  useEffect(() => {
+    if (!user && typeof window !== 'undefined') {
+      message.info('请先登录后再发布');
+      router.push('/login');
+    }
+  }, [user, router]);
+
+  if (!user) {
     return null;
   }
 
@@ -473,35 +478,4 @@ export default function PublishPage() {
   );
 }
 
-// 简单的 Tag 组件（避免引入不必要的依赖）
-function Tag({ color, children, style }: { color: string; children: React.ReactNode; style?: React.CSSProperties }) {
-  const colorMap: Record<string, string> = {
-    success: '#D1FAE5',
-    warning: '#FEF3C7',
-    error: '#FEE2E2',
-    default: '#F3F4F6',
-  };
-  const textMap: Record<string, string> = {
-    success: '#059669',
-    warning: '#D97706',
-    error: '#DC2626',
-    default: '#374151',
-  };
 
-  return (
-    <span
-      style={{
-        display: 'inline-block',
-        padding: '4px 12px',
-        borderRadius: 6,
-        fontSize: 13,
-        fontWeight: 600,
-        background: colorMap[color] || colorMap.default,
-        color: textMap[color] || textMap.default,
-        ...style,
-      }}
-    >
-      {children}
-    </span>
-  );
-}

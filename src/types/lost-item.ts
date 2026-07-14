@@ -23,6 +23,8 @@ export interface LostItem {
   lost_time?: string;
   /** 认领状态：unclaimed=未认领, claimed=已认领 */
   claim_status: 'unclaimed' | 'claimed';
+  /** 评论列表（仅详情页返回） */
+  comments?: Comment[];
   /** 发布者用户 ID */
   user_id?: string;
   /** 发布时间（ISO 8601 格式） */

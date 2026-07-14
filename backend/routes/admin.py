@@ -10,11 +10,24 @@
 所有接口均需要管理员权限。
 """
 
+import uuid
+
 from flask import Blueprint, request, jsonify
 from middlewares.auth import require_admin
 from services.auth_service import AuthService
 
 admin_bp = Blueprint('admin', __name__)
+
+
+def _validate_uuid(value: str, field_name: str = 'ID') -> tuple[bool, str]:
+    """校验字符串是否为有效的 UUID 格式"""
+    if not value:
+        return False, f'{field_name} 不能为空'
+    try:
+        uuid.UUID(value)
+        return True, ''
+    except ValueError:
+        return False, f'{field_name} 格式不合法，必须为 UUID 格式'
 
 
 @admin_bp.route('/users', methods=['GET'])
@@ -44,6 +57,9 @@ def list_users(current_user):
 def get_user(current_user, user_id: str):
     """查看单个用户详情（管理员专属）"""
     try:
+        ok, msg = _validate_uuid(user_id, 'user_id')
+        if not ok:
+            return jsonify({'success': False, 'message': msg}), 400
         user = AuthService.get_user_by_id(user_id)
         if not user:
             return jsonify({
@@ -85,6 +101,10 @@ def update_user_role(current_user, user_id: str):
             'message': '不能修改自己的角色',
         }), 400
 
+    ok, msg = _validate_uuid(user_id, 'user_id')
+    if not ok:
+        return jsonify({'success': False, 'message': msg}), 400
+
     data = request.get_json()
     if not data or 'role' not in data:
         return jsonify({
@@ -109,6 +129,10 @@ def delete_user(current_user, user_id: str):
             'success': False,
             'message': '不能删除自己的账号',
         }), 400
+
+    ok, msg = _validate_uuid(user_id, 'user_id')
+    if not ok:
+        return jsonify({'success': False, 'message': msg}), 400
 
     result = AuthService.delete_user(user_id)
     status_code = 200 if result['success'] else 400

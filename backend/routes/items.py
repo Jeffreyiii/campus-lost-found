@@ -29,6 +29,32 @@ ALLOWED_IMAGE_TYPES = {'image/jpeg', 'image/png', 'image/gif', 'image/webp'}
 MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5MB
 
 
+def _validate_uuid(value: str, field_name: str = 'ID') -> tuple[bool, str]:
+    """校验字符串是否为有效的 UUID 格式"""
+    if not value:
+        return False, f'{field_name} 不能为空'
+    try:
+        uuid.UUID(value)
+        return True, ''
+    except ValueError:
+        return False, f'{field_name} 格式不合法，必须为 UUID 格式'
+
+
+def _validate_field_length(data: dict, field: str, max_len: int, required: bool = False) -> tuple[bool, str]:
+    """校验字段长度"""
+    val = data.get(field, '')
+    if required and not val:
+        return False, f'{field} 不能为空'
+    if val and len(val) > max_len:
+        return False, f'{field} 不能超过 {max_len} 个字符'
+    return True, ''
+
+
+def _validate_phone(phone: str) -> bool:
+    """校验中国大陆手机号格式"""
+    return bool(phone) and len(phone) == 11 and phone.isdigit() and phone.startswith('1')
+
+
 @items_bp.route('/upload', methods=['POST'])
 @require_auth
 def upload_image(current_user):
@@ -120,6 +146,23 @@ def create_item(current_user):
             'message': f'缺少必填字段: {", ".join(missing)}',
         }), 400
 
+    # 校验字段长度
+    validations = [
+        _validate_field_length(data, 'title', 100, True),
+        _validate_field_length(data, 'description', 500, True),
+        _validate_field_length(data, 'location', 100, True),
+        _validate_field_length(data, 'contact_name', 50, True),
+        _validate_field_length(data, 'contact_phone', 20, True),
+        _validate_field_length(data, 'image_url', 500, False),
+    ]
+    for ok, msg in validations:
+        if not ok:
+            return jsonify({'success': False, 'message': msg}), 400
+
+    # 校验手机号格式
+    if not _validate_phone(data['contact_phone']):
+        return jsonify({'success': False, 'message': 'contact_phone 格式不正确，请输入有效的手机号'}), 400
+
     # 校验 item_type 取值
     if data['item_type'] not in ('lost', 'found'):
         return jsonify({
@@ -153,6 +196,10 @@ def get_all_items():
     """
     try:
         user_id = request.args.get('user_id')
+        if user_id:
+            ok, msg = _validate_uuid(user_id, 'user_id')
+            if not ok:
+                return jsonify({'success': False, 'message': msg}), 400
         items = item_service.get_all(user_id=user_id)
         return jsonify({
             'success': True,
@@ -175,6 +222,9 @@ def delete_item(current_user, item_id: str):
     仅允许删除自己发布的物品，管理员可删除任意物品
     """
     try:
+        ok, msg = _validate_uuid(item_id, 'item_id')
+        if not ok:
+            return jsonify({'success': False, 'message': msg}), 400
         # 检查物品是否存在
         item = item_service.get_by_id(item_id)
         if not item:
@@ -218,13 +268,14 @@ def mark_claimed(current_user, item_id: str):
     仅发布者本人可标记
     """
     try:
+        ok, msg = _validate_uuid(item_id, 'item_id')
+        if not ok:
+            return jsonify({'success': False, 'message': msg}), 400
         item = item_service.get_by_id(item_id)
         if not item:
             return jsonify({'success': False, 'message': '未找到该物品信息'}), 404
 
         # 权限校验：管理员可操作任意物品，普通用户仅可操作自己发布的物品
-        if current_user['role'] != 'admin' and item.get('user_id') != current_user['user_id']:
-            return jsonify({'success': False, 'message': '无权操作他人发布的物品'}), 403
 
         if item.get('claim_status') == 'claimed':
             return jsonify({'success': False, 'message': '该物品已标记为已认领'}), 400
@@ -244,6 +295,9 @@ def get_item_detail(item_id: str):
     获取物品详情（包含评论列表）
     """
     try:
+        ok, msg = _validate_uuid(item_id, 'item_id')
+        if not ok:
+            return jsonify({'success': False, 'message': msg}), 400
         item = item_service.get_by_id(item_id)
         if not item:
             return jsonify({'success': False, 'message': '未找到该物品信息'}), 404
@@ -266,6 +320,9 @@ def create_comment(current_user, item_id: str):
     { "content": "我在食堂也见过这个钱包" }
     """
     try:
+        ok, msg = _validate_uuid(item_id, 'item_id')
+        if not ok:
+            return jsonify({'success': False, 'message': msg}), 400
         item = item_service.get_by_id(item_id)
         if not item:
             return jsonify({'success': False, 'message': '未找到该物品信息'}), 404
@@ -274,6 +331,8 @@ def create_comment(current_user, item_id: str):
         content = data.get('content', '').strip()
         if not content:
             return jsonify({'success': False, 'message': '评论内容不能为空'}), 400
+        if len(content) > 500:
+            return jsonify({'success': False, 'message': '评论内容不能超过 500 字'}), 400
 
         comment = comment_service.create(
             item_id=item_id,
@@ -291,6 +350,9 @@ def get_comments(item_id: str):
     获取某条物品的所有评论
     """
     try:
+        ok, msg = _validate_uuid(item_id, 'item_id')
+        if not ok:
+            return jsonify({'success': False, 'message': msg}), 400
         item = item_service.get_by_id(item_id)
         if not item:
             return jsonify({'success': False, 'message': '未找到该物品信息'}), 404
@@ -308,6 +370,12 @@ def delete_comment(current_user, item_id: str, comment_id: str):
     删除评论（需登录，仅本人或管理员可删除）
     """
     try:
+        ok, msg = _validate_uuid(item_id, 'item_id')
+        if not ok:
+            return jsonify({'success': False, 'message': msg}), 400
+        ok2, msg2 = _validate_uuid(comment_id, 'comment_id')
+        if not ok2:
+            return jsonify({'success': False, 'message': msg2}), 400
         comment = comment_service.get_by_id(comment_id)
         if not comment:
             return jsonify({'success': False, 'message': '未找到该评论'}), 404

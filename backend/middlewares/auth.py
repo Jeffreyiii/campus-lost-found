@@ -62,6 +62,14 @@ def require_auth(func: Callable) -> Callable:
                 'message': '登录已过期，请重新登录',
             }), 401
 
+        # 验证用户是否仍然存在于数据库中（防止用户被删除后 token 仍可用）
+        user = AuthService.get_user_by_id(payload['user_id'])
+        if not user:
+            return jsonify({
+                'success': False,
+                'message': '用户不存在，请重新登录',
+            }), 401
+
         current_user = {
             'user_id': payload['user_id'],
             'username': payload['username'],

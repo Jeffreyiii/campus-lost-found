@@ -181,7 +181,7 @@ export default function HomePage() {
                     className="animate-fade-in-up"
                     style={{ animationDelay: `${idx * 0.1}s`, borderRadius: 16, overflow: 'hidden', border: '1px solid #ECEEF5', height: '100%' }}
                     styles={{ body: { padding: 22 } }}
-                    onClick={() => router.push('/items')}
+                    onClick={() => router.push(`/items/${item.id}`)}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
                       <Tag color={item.item_type === 'found' ? 'success' : 'warning'} style={{ borderRadius: 6, fontWeight: 600, margin: 0 }}>
