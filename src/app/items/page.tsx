@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Tag,
   Button,
@@ -31,14 +32,15 @@ import {
   CalendarOutlined,
   EyeOutlined,
 } from '@ant-design/icons';
-import { getAllLostItems, deleteLostItem } from '@/lib/api';
+import { getAllLostItems, deleteLostItem, markClaimed } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import type { LostItem } from '@/types/lost-item';
 
 const { Title, Text, Paragraph } = Typography;
 
 export default function ItemsPage() {
-  const { user } = useAuth();
+  const router = useRouter();
+  const { user, isAdmin } = useAuth();
   const [items, setItems] = useState<LostItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -68,6 +70,16 @@ export default function ItemsPage() {
     }
   };
 
+  const handleClaim = async (id: string) => {
+    try {
+      await markClaimed(id);
+      message.success('已标记为已认领');
+      fetchItems();
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '操作失败');
+    }
+  };
+
   const filteredItems = items.filter((item) => {
     const matchSearch = !search ||
       item.title.includes(search) ||
@@ -76,6 +88,8 @@ export default function ItemsPage() {
     const matchType = typeFilter === 'all' || item.item_type === typeFilter;
     return matchSearch && matchType;
   });
+
+  const claimedCount = items.filter(i => i.claim_status === 'claimed').length;
 
   const foundCount = items.filter(i => i.item_type === 'found').length;
   const lostCount = items.filter(i => i.item_type === 'lost').length;
@@ -117,10 +131,10 @@ export default function ItemsPage() {
         </Col>
         <Col xs={12} sm={6}>
           <div className="stat-card" style={{ padding: '20px 16px' }}>
-            <div className="stat-number" style={{ fontSize: 32, color: '#8B5CF6' }}>
-              {items.length > 0 ? Math.round(foundCount / items.length * 100) : 0}%
+            <div className="stat-number" style={{ fontSize: 32, color: '#EC4899' }}>
+              {claimedCount}
             </div>
-            <div className="stat-label" style={{ color: '#8B5CF6' }}>拾取比例</div>
+            <div className="stat-label" style={{ color: '#EC4899' }}>已认领</div>
           </div>
         </Col>
       </Row>
@@ -187,15 +201,19 @@ export default function ItemsPage() {
                     }}
                     styles={{ body: { padding: 0 } }}
                     cover={
-                      <div style={{
-                        height: 180,
-                        background: 'linear-gradient(135deg, #F8F7FF 0%, #EEEDFD 100%)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        overflow: 'hidden',
-                        position: 'relative',
-                      }}>
+                      <div
+                        onClick={() => router.push(`/items/${item.id}`)}
+                        style={{
+                          height: 180,
+                          background: 'linear-gradient(135deg, #F8F7FF 0%, #EEEDFD 100%)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          overflow: 'hidden',
+                          position: 'relative',
+                          cursor: 'pointer',
+                        }}
+                      >
                         {item.image_url ? (
                           <Image
                             src={item.image_url}
@@ -214,46 +232,84 @@ export default function ItemsPage() {
                     }
                     actions={
                       user ? [
-                        <Popconfirm
-                          key="delete"
-                          title="确认删除这条信息？"
-                          description="删除后无法恢复"
-                          onConfirm={() => handleDelete(item.id)}
-                          okText="删除"
-                          cancelText="取消"
-                          okButtonProps={{ danger: true }}
-                        >
-                          <Tooltip title="删除">
-                            <DeleteOutlined style={{ color: '#EF4444', fontSize: 16 }} />
-                          </Tooltip>
-                        </Popconfirm>,
-                      ] : []
+                        (isAdmin || item.user_id === user.id) && (
+                          item.claim_status === 'unclaimed' ? (
+                            <Tooltip title="标记为已认领" key="claim">
+                              <Button
+                                type="link"
+                                size="small"
+                                onClick={() => handleClaim(item.id)}
+                                style={{ color: '#10B981', fontSize: 13, padding: '0 8px' }}
+                              >
+                                去认领
+                              </Button>
+                            </Tooltip>
+                          ) : (
+                            <Tooltip title="该物品已认领" key="claimed">
+                              <Button
+                                type="link"
+                                size="small"
+                                disabled
+                                style={{ color: '#9CA3AF', fontSize: 13, padding: '0 8px' }}
+                              >
+                                已认领
+                              </Button>
+                            </Tooltip>
+                          )
+                        ),
+                        (isAdmin || item.user_id === user.id) && (
+                          <Popconfirm
+                            key="delete"
+                            title="确认删除这条信息？"
+                            description="删除后无法恢复"
+                            onConfirm={() => handleDelete(item.id)}
+                            okText="删除"
+                            cancelText="取消"
+                            okButtonProps={{ danger: true }}
+                          >
+                            <Tooltip title="删除">
+                              <DeleteOutlined style={{ color: '#EF4444', fontSize: 16 }} />
+                            </Tooltip>
+                          </Popconfirm>
+                        ),
+                      ].filter(Boolean) : []
                     }
                   >
-                    <div style={{ padding: '16px 20px' }}>
-                      {/* 标题 */}
+                    <div
+                      onClick={() => router.push(`/items/${item.id}`)}
+                      style={{ padding: '16px 20px', cursor: 'pointer' }}
+                    >
+                      {/* 标题 + 双标签 */}
                       <div style={{
                         display: 'flex',
                         alignItems: 'flex-start',
                         justifyContent: 'space-between',
                         marginBottom: 8,
+                        flexWrap: 'wrap',
+                        gap: 6,
                       }}>
                         <Text strong style={{ fontSize: 16, color: '#1F2937', flex: 1, lineHeight: 1.4 }}>
                           {item.title}
                         </Text>
-                        <Tag
-                          color={item.item_type === 'found' ? 'green' : 'orange'}
-                          style={{
-                            borderRadius: 6,
-                            fontWeight: 600,
-                            fontSize: 11,
-                            marginLeft: 8,
-                            marginRight: 0,
-                            flexShrink: 0,
-                          }}
-                        >
-                          {item.item_type === 'found' ? '招领' : '寻物'}
-                        </Tag>
+                        <Space size={4}>
+                          <Tag
+                            color={item.item_type === 'found' ? 'green' : 'orange'}
+                            style={{
+                              borderRadius: 6,
+                              fontWeight: 600,
+                              fontSize: 11,
+                              marginRight: 0,
+                            }}
+                          >
+                            {item.item_type === 'found' ? '招领' : '寻物'}
+                          </Tag>
+                          <Tag
+                            color={item.claim_status === 'claimed' ? 'blue' : 'default'}
+                            style={{ borderRadius: 6, fontWeight: 600, fontSize: 11, marginRight: 0 }}
+                          >
+                            {item.claim_status === 'claimed' ? '已认领' : '未认领'}
+                          </Tag>
+                        </Space>
                       </div>
 
                       {/* 描述 */}
@@ -271,23 +327,17 @@ export default function ItemsPage() {
                           <Text style={{ color: '#6B7280', fontSize: 13 }}>{item.location}</Text>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <CalendarOutlined style={{ color: '#9CA3AF', fontSize: 13 }} />
+                          <Text style={{ color: '#6B7280', fontSize: 13 }}>
+                            {item.lost_time ? item.lost_time : '未填写时间'}
+                          </Text>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                           <UserOutlined style={{ color: '#9CA3AF', fontSize: 13 }} />
                           <Text style={{ color: '#6B7280', fontSize: 13 }}>{item.contact_name}</Text>
                           <Text style={{ color: '#D1D5DB', fontSize: 13 }}>|</Text>
                           <PhoneOutlined style={{ color: '#9CA3AF', fontSize: 13 }} />
                           <Text style={{ color: '#6B7280', fontSize: 13 }}>{item.contact_phone}</Text>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <CalendarOutlined style={{ color: '#9CA3AF', fontSize: 13 }} />
-                          <Text style={{ color: '#9CA3AF', fontSize: 12 }}>
-                            {new Date(item.created_at).toLocaleDateString('zh-CN', {
-                              year: 'numeric',
-                              month: '2-digit',
-                              day: '2-digit',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </Text>
                         </div>
                       </Space>
                     </div>

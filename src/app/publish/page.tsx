@@ -18,6 +18,7 @@ import {
   Alert,
   Upload,
   Image,
+  DatePicker,
 } from 'antd';
 import {
   InboxOutlined,
@@ -33,6 +34,7 @@ import {
   DeleteOutlined,
   PictureOutlined,
   LoadingOutlined,
+  CalendarOutlined,
 } from '@ant-design/icons';
 import type { UploadFile, RcFile } from 'antd/es/upload/interface';
 import { createLostItem, uploadImage } from '@/lib/api';
@@ -91,7 +93,8 @@ export default function PublishPage() {
         contact_name: values.contact_name,
         contact_phone: values.contact_phone,
         item_type: values.item_type,
-        image_url: uploadedUrl || undefined,  // 直接用 state，避免 hidden 字段值丢失
+        image_url: uploadedUrl || undefined,
+        lost_time: values.lost_time ? values.lost_time.format('YYYY-MM-DD') : undefined,
       });
       message.success('发布成功！');
       router.push('/items');
@@ -202,6 +205,18 @@ export default function PublishPage() {
                 <Row gutter={16}>
                   <Col xs={24} sm={12}>
                     <Form.Item
+                      name="lost_time"
+                      label={<span style={{ fontWeight: 600 }}>丢失/捡到时间</span>}
+                    >
+                      <DatePicker
+                        style={{ width: '100%' }}
+                        placeholder="选择日期"
+                        format="YYYY-MM-DD"
+                      />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} sm={12}>
+                    <Form.Item
                       name="location"
                       label={<span style={{ fontWeight: 600 }}>地点</span>}
                       rules={[{ required: true, message: '请输入地点' }]}
@@ -212,6 +227,9 @@ export default function PublishPage() {
                       />
                     </Form.Item>
                   </Col>
+                </Row>
+
+                <Row gutter={16}>
                   <Col xs={24} sm={12}>
                     <Form.Item
                       name="contact_name"
@@ -224,21 +242,22 @@ export default function PublishPage() {
                       />
                     </Form.Item>
                   </Col>
+                  <Col xs={24} sm={12}>
+                    <Form.Item
+                      name="contact_phone"
+                      label={<span style={{ fontWeight: 600 }}>联系电话</span>}
+                      rules={[
+                        { required: true, message: '请输入联系电话' },
+                        { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号' },
+                      ]}
+                    >
+                      <Input
+                        prefix={<PhoneOutlined style={{ color: '#A0A0B8' }} />}
+                        placeholder="手机号码"
+                      />
+                    </Form.Item>
+                  </Col>
                 </Row>
-
-                <Form.Item
-                  name="contact_phone"
-                  label={<span style={{ fontWeight: 600 }}>联系电话</span>}
-                  rules={[
-                    { required: true, message: '请输入联系电话' },
-                    { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号' },
-                  ]}
-                >
-                  <Input
-                    prefix={<PhoneOutlined style={{ color: '#A0A0B8' }} />}
-                    placeholder="手机号码"
-                  />
-                </Form.Item>
 
                 <Divider />
                 <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
@@ -355,8 +374,16 @@ export default function PublishPage() {
                       <Text strong>{form.getFieldValue('location')}</Text>
                     </Col>
                     <Col span={12}>
+                      <Text type="secondary">时间：</Text>
+                      <Text strong>{form.getFieldValue('lost_time')?.format('YYYY-MM-DD') || '未填写'}</Text>
+                    </Col>
+                    <Col span={12}>
                       <Text type="secondary">联系人：</Text>
                       <Text strong>{form.getFieldValue('contact_name')}</Text>
+                    </Col>
+                    <Col span={12}>
+                      <Text type="secondary">电话：</Text>
+                      <Text strong>{form.getFieldValue('contact_phone')}</Text>
                     </Col>
                     <Col span={24}>
                       <Text type="secondary">描述：</Text>

@@ -10,7 +10,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
-from db.supabase_client import get_supabase_client, is_supabase_configured
+from db.supabase_client import get_supabase_client, get_supabase_admin_client, is_supabase_configured
 
 # Supabase 表名
 TABLE_NAME = 'lost_items'
@@ -44,16 +44,19 @@ class ItemService:
             return self._create_in_supabase(data)
         return self._create_in_memory(data)
 
-    def get_all(self) -> List[Dict]:
+    def get_all(self, user_id: Optional[str] = None) -> List[Dict]:
         """
-        获取全部招领信息，按发布时间倒序排列
+        获取招领信息，按发布时间倒序排列
+
+        Args:
+            user_id: 可选，筛选指定用户发布的物品
 
         Returns:
             物品列表
         """
         if self._use_supabase:
-            return self._get_all_from_supabase()
-        return self._get_all_from_memory()
+            return self._get_all_from_supabase(user_id)
+        return self._get_all_from_memory(user_id)
 
     def delete(self, item_id: str) -> bool:
         """
@@ -83,11 +86,29 @@ class ItemService:
             return self._get_by_id_from_supabase(item_id)
         return next((item for item in self._items if item['id'] == item_id), None)
 
+    def mark_claimed(self, item_id: str) -> Optional[Dict]:
+        """将物品标记为已认领（使用 admin key 绕过 RLS）"""
+        if self._use_supabase:
+            supabase = get_supabase_admin_client()
+            result = (
+                supabase.table(TABLE_NAME)
+                .update({'claim_status': 'claimed'})
+                .eq('id', item_id)
+                .execute()
+            )
+            return result.data[0] if result.data else None
+        # 内存模式
+        for item in self._items:
+            if item['id'] == item_id:
+                item['claim_status'] = 'claimed'
+                return item
+        return None
+
     # ==================== Supabase 存储实现 ====================
 
     def _create_in_supabase(self, data: Dict) -> Dict:
-        """向 Supabase 插入一条招领记录"""
-        supabase = get_supabase_client()
+        """向 Supabase 插入一条招领记录（使用 admin key 绕过 RLS）"""
+        supabase = get_supabase_admin_client()
         payload = {
             'title': data['title'],
             'description': data['description'],
@@ -97,24 +118,24 @@ class ItemService:
             'item_type': data['item_type'],
             'user_id': data.get('user_id'),
             'image_url': data.get('image_url'),
+            'lost_time': data.get('lost_time'),
+            'claim_status': data.get('claim_status', 'unclaimed'),
         }
         result = supabase.table(TABLE_NAME).insert(payload).execute()
         return result.data[0]
 
-    def _get_all_from_supabase(self) -> List[Dict]:
-        """从 Supabase 查询全部记录，按时间倒序"""
+    def _get_all_from_supabase(self, user_id: Optional[str] = None) -> List[Dict]:
+        """从 Supabase 查询记录，按时间倒序，可选按用户筛选"""
         supabase = get_supabase_client()
-        result = (
-            supabase.table(TABLE_NAME)
-            .select('*')
-            .order('created_at', desc=True)
-            .execute()
-        )
+        query = supabase.table(TABLE_NAME).select('*').order('created_at', desc=True)
+        if user_id:
+            query = query.eq('user_id', user_id)
+        result = query.execute()
         return result.data
 
     def _delete_from_supabase(self, item_id: str) -> bool:
-        """从 Supabase 删除指定记录"""
-        supabase = get_supabase_client()
+        """从 Supabase 删除指定记录（使用 admin key 绕过 RLS）"""
+        supabase = get_supabase_admin_client()
         result = (
             supabase.table(TABLE_NAME)
             .delete()
@@ -148,14 +169,19 @@ class ItemService:
             'contact_phone': data['contact_phone'],
             'item_type': data['item_type'],
             'image_url': data.get('image_url'),
+            'lost_time': data.get('lost_time'),
+            'claim_status': data.get('claim_status', 'unclaimed'),
             'created_at': datetime.now(timezone.utc).isoformat(),
         }
         self._items.append(item)
         return item
 
-    def _get_all_from_memory(self) -> List[Dict]:
-        """从内存列表获取全部记录"""
-        return sorted(self._items, key=lambda x: x['created_at'], reverse=True)
+    def _get_all_from_memory(self, user_id: Optional[str] = None) -> List[Dict]:
+        """从内存列表获取记录，可选按用户筛选"""
+        items = self._items
+        if user_id:
+            items = [item for item in items if item.get('user_id') == user_id]
+        return sorted(items, key=lambda x: x['created_at'], reverse=True)
 
     def _delete_from_memory(self, item_id: str) -> bool:
         """从内存列表删除指定记录"""

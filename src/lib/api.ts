@@ -91,9 +91,10 @@ export async function createLostItem(
   });
 }
 
-/** 查询全部招领信息 GET /api/items（公开） */
-export async function getAllLostItems(): Promise<ApiResponse<LostItem[]>> {
-  return request<LostItem[]>('/api/items', {
+/** 查询招领信息 GET /api/items（公开，可选按用户筛选） */
+export async function getAllLostItems(userId?: string): Promise<ApiResponse<LostItem[]>> {
+  const query = userId ? `?user_id=${encodeURIComponent(userId)}` : '';
+  return request<LostItem[]>(`/api/items${query}`, {
     method: 'GET',
   });
 }
@@ -101,6 +102,50 @@ export async function getAllLostItems(): Promise<ApiResponse<LostItem[]>> {
 /** 删除信息 DELETE /api/items/:id（需登录，仅本人或管理员） */
 export async function deleteLostItem(id: string): Promise<ApiResponse<null>> {
   return request<null>(`/api/items/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+/** 标记为已认领 PATCH /api/items/:id/claim（需登录，仅本人或管理员） */
+export async function markClaimed(id: string): Promise<ApiResponse<LostItem>> {
+  return request<LostItem>(`/api/items/${id}/claim`, {
+    method: 'PATCH',
+  });
+}
+
+// ==================== 物品详情与评论 API ====================
+
+/** 获取物品详情（含评论）GET /api/items/:id */
+export async function getItemDetail(id: string): Promise<ApiResponse<LostItem>> {
+  return request<LostItem>(`/api/items/${id}`, {
+    method: 'GET',
+  });
+}
+
+/** 发表评论 POST /api/items/:id/comments（需登录） */
+export async function createComment(
+  itemId: string,
+  content: string
+): Promise<ApiResponse<Comment>> {
+  return request<Comment>(`/api/items/${itemId}/comments`, {
+    method: 'POST',
+    body: JSON.stringify({ content }),
+  });
+}
+
+/** 获取评论列表 GET /api/items/:id/comments */
+export async function getComments(itemId: string): Promise<ApiResponse<Comment[]>> {
+  return request<Comment[]>(`/api/items/${itemId}/comments`, {
+    method: 'GET',
+  });
+}
+
+/** 删除评论 DELETE /api/items/:id/comments/:commentId（需登录） */
+export async function deleteComment(
+  itemId: string,
+  commentId: string
+): Promise<ApiResponse<null>> {
+  return request<null>(`/api/items/${itemId}/comments/${commentId}`, {
     method: 'DELETE',
   });
 }

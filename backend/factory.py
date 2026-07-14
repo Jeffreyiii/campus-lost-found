@@ -39,8 +39,13 @@ def create_app() -> Flask:
                 'register': 'POST /api/auth/register',
                 'login': 'POST /api/auth/login',
                 'items': 'GET /api/items',
+                'item_detail': 'GET /api/items/<id>',
                 'create_item': 'POST /api/items (需登录)',
                 'delete_item': 'DELETE /api/items/<id> (需登录)',
+                'claim_item': 'PATCH /api/items/<id>/claim (需登录)',
+                'comments': 'GET /api/items/<id>/comments',
+                'create_comment': 'POST /api/items/<id>/comments (需登录)',
+                'delete_comment': 'DELETE /api/items/<id>/comments/<comment_id> (需登录)',
                 'admin_users': 'GET /api/admin/users (需管理员)',
             },
         }

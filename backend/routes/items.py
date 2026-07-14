@@ -2,16 +2,18 @@
 失物招领物品 API 路由
 
 提供接口：
- ① POST   /api/items/upload  - 上传图片（需登录）
- ② POST   /api/items         - 发布物品信息（需登录）
- ③ GET    /api/items         - 查询全部招领信息（公开）
- ④ DELETE /api/items/<id>    - 删除信息（需登录，仅本人或管理员）
+ ① POST   /api/items/upload      - 上传图片（需登录）
+ ② POST   /api/items             - 发布物品信息（需登录）
+ ③ GET    /api/items             - 查询全部招领信息（公开）
+ ④ DELETE /api/items/<id>        - 删除信息（需登录，仅本人或管理员）
+ ⑤ PATCH  /api/items/<id>/claim  - 标记为已认领（需登录，仅本人或管理员）
 """
 
 import uuid
 from flask import Blueprint, request, jsonify
 from middlewares.auth import require_auth
 from services.item_service import ItemService
+from services.comment_service import CommentService
 from config import Config
 from db.supabase_client import is_supabase_configured, get_supabase_client
 
@@ -20,6 +22,7 @@ items_bp = Blueprint('items', __name__)
 
 # 服务层实例
 item_service = ItemService()
+comment_service = CommentService()
 
 # 允许的图片格式
 ALLOWED_IMAGE_TYPES = {'image/jpeg', 'image/png', 'image/gif', 'image/webp'}
@@ -143,12 +146,14 @@ def create_item(current_user):
 @items_bp.route('', methods=['GET'])
 def get_all_items():
     """
-    ② 查询全部招领信息（公开）
+    ② 查询招领信息（公开，可选按用户筛选）
 
-    返回所有已发布的失物招领记录列表
+    查询参数：
+        user_id (str, optional): 筛选指定用户发布的物品
     """
     try:
-        items = item_service.get_all()
+        user_id = request.args.get('user_id')
+        items = item_service.get_all(user_id=user_id)
         return jsonify({
             'success': True,
             'message': '查询成功',
@@ -178,8 +183,8 @@ def delete_item(current_user, item_id: str):
                 'message': '未找到该物品信息',
             }), 404
 
-        # 权限校验：仅本人或管理员可删除
-        if item.get('user_id') != current_user['user_id'] and current_user['role'] != 'admin':
+        # 权限校验：管理员可删除任意物品，普通用户仅可删除自己发布的物品
+        if current_user['role'] != 'admin' and item.get('user_id') != current_user['user_id']:
             return jsonify({
                 'success': False,
                 'message': '无权删除他人发布的物品',
@@ -202,4 +207,120 @@ def delete_item(current_user, item_id: str):
             'success': False,
             'message': f'删除失败: {str(e)}',
         }), 500
+
+
+@items_bp.route('/<item_id>/claim', methods=['PATCH'])
+@require_auth
+def mark_claimed(current_user, item_id: str):
+    """
+    ④ 标记物品为已认领（需登录）
+
+    仅发布者本人可标记
+    """
+    try:
+        item = item_service.get_by_id(item_id)
+        if not item:
+            return jsonify({'success': False, 'message': '未找到该物品信息'}), 404
+
+        # 权限校验：管理员可操作任意物品，普通用户仅可操作自己发布的物品
+        if current_user['role'] != 'admin' and item.get('user_id') != current_user['user_id']:
+            return jsonify({'success': False, 'message': '无权操作他人发布的物品'}), 403
+
+        if item.get('claim_status') == 'claimed':
+            return jsonify({'success': False, 'message': '该物品已标记为已认领'}), 400
+
+        updated = item_service.mark_claimed(item_id)
+        if not updated:
+            return jsonify({'success': False, 'message': '操作失败'}), 500
+
+        return jsonify({'success': True, 'message': '已标记为已认领', 'data': updated})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'操作失败: {str(e)}'}), 500
+
+
+@items_bp.route('/<item_id>', methods=['GET'])
+def get_item_detail(item_id: str):
+    """
+    获取物品详情（包含评论列表）
+    """
+    try:
+        item = item_service.get_by_id(item_id)
+        if not item:
+            return jsonify({'success': False, 'message': '未找到该物品信息'}), 404
+
+        comments = comment_service.get_by_item(item_id)
+        item['comments'] = comments
+
+        return jsonify({'success': True, 'message': '查询成功', 'data': item})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'查询失败: {str(e)}'}), 500
+
+
+@items_bp.route('/<item_id>/comments', methods=['POST'])
+@require_auth
+def create_comment(current_user, item_id: str):
+    """
+    发表评论（需登录）
+
+    请求体 JSON 示例：
+    { "content": "我在食堂也见过这个钱包" }
+    """
+    try:
+        item = item_service.get_by_id(item_id)
+        if not item:
+            return jsonify({'success': False, 'message': '未找到该物品信息'}), 404
+
+        data = request.get_json()
+        content = data.get('content', '').strip()
+        if not content:
+            return jsonify({'success': False, 'message': '评论内容不能为空'}), 400
+
+        comment = comment_service.create(
+            item_id=item_id,
+            user_id=current_user['user_id'],
+            content=content,
+        )
+        return jsonify({'success': True, 'message': '评论成功', 'data': comment}), 201
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'评论失败: {str(e)}'}), 500
+
+
+@items_bp.route('/<item_id>/comments', methods=['GET'])
+def get_comments(item_id: str):
+    """
+    获取某条物品的所有评论
+    """
+    try:
+        item = item_service.get_by_id(item_id)
+        if not item:
+            return jsonify({'success': False, 'message': '未找到该物品信息'}), 404
+
+        comments = comment_service.get_by_item(item_id)
+        return jsonify({'success': True, 'message': '查询成功', 'data': comments})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'查询失败: {str(e)}'}), 500
+
+
+@items_bp.route('/<item_id>/comments/<comment_id>', methods=['DELETE'])
+@require_auth
+def delete_comment(current_user, item_id: str, comment_id: str):
+    """
+    删除评论（需登录，仅本人或管理员可删除）
+    """
+    try:
+        comment = comment_service.get_by_id(comment_id)
+        if not comment:
+            return jsonify({'success': False, 'message': '未找到该评论'}), 404
+
+        # 权限校验：管理员或评论发布者本人可删除
+        if current_user['role'] != 'admin' and comment.get('user_id') != current_user['user_id']:
+            return jsonify({'success': False, 'message': '无权删除他人评论'}), 403
+
+        deleted = comment_service.delete(comment_id)
+        if not deleted:
+            return jsonify({'success': False, 'message': '删除失败'}), 500
+
+        return jsonify({'success': True, 'message': '删除成功'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'删除失败: {str(e)}'}), 500
 

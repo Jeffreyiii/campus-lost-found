@@ -19,6 +19,7 @@ import {
   SettingOutlined,
   MenuOutlined,
   InboxOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
@@ -44,8 +45,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     { key: '/', icon: <HomeOutlined />, label: '首页' },
     { key: '/items', icon: <SearchOutlined />, label: '招领信息' },
     ...(user
-      ? [{ key: '/publish', icon: <PlusCircleOutlined />, label: '发布信息' }]
+      ? [
+          { key: '/publish', icon: <PlusCircleOutlined />, label: '发布信息' },
+          { key: '/my-posts', icon: <FileTextOutlined />, label: '我的发布' },
+        ]
       : []),
+    { key: '/guide', icon: <SafetyOutlined />, label: '使用指南' },
     ...(isAdmin
       ? [{ key: '/admin', icon: <SettingOutlined />, label: '后台管理' }]
       : []),

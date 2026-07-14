@@ -19,6 +19,12 @@ export interface LostItem {
   item_type: 'lost' | 'found';
   /** 图片公开URL */
   image_url?: string;
+  /** 丢失/捡到日期（YYYY-MM-DD） */
+  lost_time?: string;
+  /** 认领状态：unclaimed=未认领, claimed=已认领 */
+  claim_status: 'unclaimed' | 'claimed';
+  /** 发布者用户 ID */
+  user_id?: string;
   /** 发布时间（ISO 8601 格式） */
   created_at: string;
 }
@@ -35,6 +41,20 @@ export interface CreateLostItemPayload {
   item_type: 'lost' | 'found';
   /** 图片公网URL（可选，通过 uploadImage 获取） */
   image_url?: string;
+  /** 丢失/捡到日期（YYYY-MM-DD） */
+  lost_time?: string;
+}
+
+/**
+ * 评论类型定义
+ */
+export interface Comment {
+  id: string;
+  item_id: string;
+  user_id?: string;
+  content: string;
+  created_at: string;
+  nickname?: string;
 }
 
 /**

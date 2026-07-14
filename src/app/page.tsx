@@ -16,7 +16,6 @@ import {
   SearchOutlined,
   PlusCircleOutlined,
   SafetyOutlined,
-  TeamOutlined,
   ArrowRightOutlined,
   InboxOutlined,
   BellOutlined,
@@ -152,23 +151,13 @@ export default function HomePage() {
               </Text>
             </div>
           </Link>
-          <Link href="/items">
+          <Link href="/guide">
             <div className="feature-card animate-fade-in-up" style={{ animationDelay: '0.35s' }}>
               <div className="icon-wrapper" style={{ background: '#FFF4E5', color: '#F97316' }}><SafetyOutlined /></div>
-              <h3>安全规范</h3>
-              <p>平台保护联系方式安全</p>
+              <h3>使用指南</h3>
+              <p>了解平台功能与使用规范</p>
               <Text type="secondary" style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 4, marginTop: 12 }}>
-                了解更多 <ArrowRightOutlined />
-              </Text>
-            </div>
-          </Link>
-          <Link href="/items">
-            <div className="feature-card animate-fade-in-up" style={{ animationDelay: '0.45s' }}>
-              <div className="icon-wrapper" style={{ background: '#F3EEFF', color: '#A855F7' }}><TeamOutlined /></div>
-              <h3>校园社区</h3>
-              <p>加入互助社区温暖彼此</p>
-              <Text type="secondary" style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 4, marginTop: 12 }}>
-                参与互动 <ArrowRightOutlined />
+                查看指南 <ArrowRightOutlined />
               </Text>
             </div>
           </Link>
