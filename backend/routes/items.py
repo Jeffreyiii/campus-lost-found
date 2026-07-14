@@ -10,6 +10,7 @@
 """
 
 import uuid
+from typing import Tuple
 from flask import Blueprint, request, jsonify
 from middlewares.auth import require_auth
 from services.item_service import ItemService
@@ -29,7 +30,7 @@ ALLOWED_IMAGE_TYPES = {'image/jpeg', 'image/png', 'image/gif', 'image/webp'}
 MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5MB
 
 
-def _validate_uuid(value: str, field_name: str = 'ID') -> tuple[bool, str]:
+def _validate_uuid(value: str, field_name: str = 'ID') -> Tuple[bool, str]:
     """校验字符串是否为有效的 UUID 格式"""
     if not value:
         return False, f'{field_name} 不能为空'
@@ -40,7 +41,7 @@ def _validate_uuid(value: str, field_name: str = 'ID') -> tuple[bool, str]:
         return False, f'{field_name} 格式不合法，必须为 UUID 格式'
 
 
-def _validate_field_length(data: dict, field: str, max_len: int, required: bool = False) -> tuple[bool, str]:
+def _validate_field_length(data: dict, field: str, max_len: int, required: bool = False) -> Tuple[bool, str]:
     """校验字段长度"""
     val = data.get(field, '')
     if required and not val:

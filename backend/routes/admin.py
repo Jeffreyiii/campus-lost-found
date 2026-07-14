@@ -11,6 +11,7 @@
 """
 
 import uuid
+from typing import Tuple
 
 from flask import Blueprint, request, jsonify
 from middlewares.auth import require_admin
@@ -19,7 +20,7 @@ from services.auth_service import AuthService
 admin_bp = Blueprint('admin', __name__)
 
 
-def _validate_uuid(value: str, field_name: str = 'ID') -> tuple[bool, str]:
+def _validate_uuid(value: str, field_name: str = 'ID') -> Tuple[bool, str]:
     """校验字符串是否为有效的 UUID 格式"""
     if not value:
         return False, f'{field_name} 不能为空'
