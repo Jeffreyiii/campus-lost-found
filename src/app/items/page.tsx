@@ -2,10 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import {
-  Table,
   Tag,
   Button,
-  Space,
   Typography,
   message,
   Spin,
@@ -15,22 +13,32 @@ import {
   Row,
   Col,
   Popconfirm,
+  Image,
+  Empty,
+  Space,
+  Badge,
+  Tooltip,
 } from 'antd';
 import {
   DeleteOutlined,
   ReloadOutlined,
   SearchOutlined,
   InboxOutlined,
-  SafetyOutlined,
+  EnvironmentOutlined,
+  PhoneOutlined,
+  UserOutlined,
+  PictureOutlined,
+  CalendarOutlined,
+  EyeOutlined,
 } from '@ant-design/icons';
 import { getAllLostItems, deleteLostItem } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import type { LostItem } from '@/types/lost-item';
 
-const { Title, Text } = Typography;
+const { Title, Text, Paragraph } = Typography;
 
 export default function ItemsPage() {
-  const { user, token, isAdmin } = useAuth();
+  const { user } = useAuth();
   const [items, setItems] = useState<LostItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -61,87 +69,16 @@ export default function ItemsPage() {
   };
 
   const filteredItems = items.filter((item) => {
-    const matchSearch = !search || item.title.includes(search) || item.description.includes(search) || item.location.includes(search);
+    const matchSearch = !search ||
+      item.title.includes(search) ||
+      item.description.includes(search) ||
+      item.location.includes(search);
     const matchType = typeFilter === 'all' || item.item_type === typeFilter;
     return matchSearch && matchType;
   });
 
-  const columns = [
-    {
-      title: '类型',
-      dataIndex: 'item_type',
-      key: 'item_type',
-      width: 110,
-      render: (type: string) => (
-        <Tag
-          color={type === 'found' ? 'success' : 'warning'}
-          style={{ borderRadius: 6, fontWeight: 600, fontSize: 13, padding: '2px 12px' }}
-        >
-          {type === 'found' ? '失物招领' : '寻物启事'}
-        </Tag>
-      ),
-    },
-    {
-      title: '标题',
-      dataIndex: 'title',
-      key: 'title',
-      render: (text: string) => <span style={{ fontWeight: 600, color: '#1F2937' }}>{text}</span>,
-    },
-    {
-      title: '描述',
-      dataIndex: 'description',
-      key: 'description',
-      ellipsis: true,
-      render: (text: string) => <span style={{ color: '#6B7280' }}>{text}</span>,
-    },
-    {
-      title: '地点',
-      dataIndex: 'location',
-      key: 'location',
-      width: 130,
-      render: (text: string) => (
-        <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13 }}>
-          <SafetyOutlined style={{ color: '#9CA3AF' }} /> {text}
-        </span>
-      ),
-    },
-    {
-      title: '联系人',
-      dataIndex: 'contact_name',
-      key: 'contact_name',
-      width: 100,
-    },
-    {
-      title: '时间',
-      dataIndex: 'created_at',
-      key: 'created_at',
-      width: 120,
-      render: (text: string) => (
-        <Text type="secondary" style={{ fontSize: 13 }}>
-          {new Date(text).toLocaleDateString('zh-CN')}
-        </Text>
-      ),
-    },
-    ...(user ? [{
-      title: '操作',
-      key: 'action',
-      width: 80,
-      render: (_: unknown, record: LostItem) => (
-        <Popconfirm
-          title="确认删除"
-          description="删除后无法恢复"
-          onConfirm={() => handleDelete(record.id)}
-          okText="删除"
-          cancelText="取消"
-          okButtonProps={{ danger: true }}
-        >
-          <Button type="text" danger icon={<DeleteOutlined />} size="small" style={{ borderRadius: 8 }}>
-            删除
-          </Button>
-        </Popconfirm>
-      ),
-    }] : []),
-  ];
+  const foundCount = items.filter(i => i.item_type === 'found').length;
+  const lostCount = items.filter(i => i.item_type === 'lost').length;
 
   return (
     <div className="page-container animate-fade-in">
@@ -154,42 +91,43 @@ export default function ItemsPage() {
         <Text type="secondary">浏览所有遗失物品和拾取物品信息</Text>
       </div>
 
-      {/* 统计 + 搜索 */}
+      {/* 统计卡片 */}
       <Row gutter={[20, 16]} style={{ marginBottom: 20 }}>
         <Col xs={12} sm={6}>
           <div className="stat-card" style={{ padding: '20px 16px' }}>
             <div className="stat-number" style={{ fontSize: 32 }}>{items.length}</div>
-            <div className="stat-label">全部</div>
+            <div className="stat-label">全部信息</div>
           </div>
         </Col>
         <Col xs={12} sm={6}>
           <div className="stat-card" style={{ padding: '20px 16px' }}>
-            <div className="stat-number" style={{ fontSize: 32, color: '#00B894' }}>
-              {items.filter(i => i.item_type === 'found').length}
+            <div className="stat-number" style={{ fontSize: 32, color: '#10B981' }}>
+              {foundCount}
             </div>
-            <div className="stat-label" style={{ color: '#00B894' }}>失物招领</div>
+            <div className="stat-label" style={{ color: '#10B981' }}>失物招领</div>
           </div>
         </Col>
         <Col xs={12} sm={6}>
           <div className="stat-card" style={{ padding: '20px 16px' }}>
-            <div className="stat-number" style={{ fontSize: 32, color: '#F97316' }}>
-              {items.filter(i => i.item_type === 'lost').length}
+            <div className="stat-number" style={{ fontSize: 32, color: '#F59E0B' }}>
+              {lostCount}
             </div>
-            <div className="stat-label" style={{ color: '#F97316' }}>寻物启事</div>
+            <div className="stat-label" style={{ color: '#F59E0B' }}>寻物启事</div>
           </div>
         </Col>
         <Col xs={12} sm={6}>
           <div className="stat-card" style={{ padding: '20px 16px' }}>
-            <div className="stat-number" style={{ fontSize: 32, color: '#A855F7' }}>
-              {items.length > 0 ? Math.round(items.filter(i => i.item_type === 'found').length / items.length * 100) : 0}%
+            <div className="stat-number" style={{ fontSize: 32, color: '#8B5CF6' }}>
+              {items.length > 0 ? Math.round(foundCount / items.length * 100) : 0}%
             </div>
-            <div className="stat-label" style={{ color: '#A855F7' }}>找回率</div>
+            <div className="stat-label" style={{ color: '#8B5CF6' }}>拾取比例</div>
           </div>
         </Col>
       </Row>
 
-      {/* 搜索栏 */}
-      <Card style={{ borderRadius: 16, marginBottom: 20, border: '1px solid #ECEEF5' }} styles={{ body: { padding: '20px 24px' } }}>
+      {/* 搜索筛选栏 */}
+      <Card style={{ borderRadius: 16, marginBottom: 20, border: '1px solid #ECEEF5' }}
+        styles={{ body: { padding: '20px 24px' } }}>
         <Row gutter={16} align="middle">
           <Col xs={24} sm={14}>
             <Input
@@ -208,9 +146,9 @@ export default function ItemsPage() {
               value={typeFilter}
               onChange={setTypeFilter}
               options={[
-                { value: 'all', label: '全部' },
-                { value: 'found', label: '失物招领' },
-                { value: 'lost', label: '寻物启事' },
+                { value: 'all', label: '全部类型' },
+                { value: 'found', label: '🔍 失物招领' },
+                { value: 'lost', label: '📢 寻物启事' },
               ]}
             />
           </Col>
@@ -228,26 +166,152 @@ export default function ItemsPage() {
         </Row>
       </Card>
 
-      {/* 表格 */}
+      {/* 物品卡片网格 */}
       <Spin spinning={loading}>
         {filteredItems.length > 0 ? (
-          <Table
-            columns={columns}
-            dataSource={filteredItems}
-            rowKey="id"
-            pagination={{
-              pageSize: 10,
-              showSizeChanger: true,
-              showTotal: (total) => `共 ${total} 条`,
-            }}
-            style={{ background: '#fff', borderRadius: 16, overflow: 'hidden' }}
-          />
+          <Row gutter={[20, 20]}>
+            {filteredItems.map((item) => (
+              <Col key={item.id} xs={24} sm={12} lg={8} xl={6}>
+                <Badge.Ribbon
+                  text={item.item_type === 'found' ? '失物招领' : '寻物启事'}
+                  color={item.item_type === 'found' ? '#10B981' : '#F59E0B'}
+                  style={{ fontWeight: 600, fontSize: 12 }}
+                >
+                  <Card
+                    hoverable
+                    style={{
+                      borderRadius: 16,
+                      overflow: 'hidden',
+                      border: '1px solid #F0F0F5',
+                      height: '100%',
+                    }}
+                    styles={{ body: { padding: 0 } }}
+                    cover={
+                      <div style={{
+                        height: 180,
+                        background: 'linear-gradient(135deg, #F8F7FF 0%, #EEEDFD 100%)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        overflow: 'hidden',
+                        position: 'relative',
+                      }}>
+                        {item.image_url ? (
+                          <Image
+                            src={item.image_url}
+                            alt={item.title}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            fallback="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIwIiBoZWlnaHQ9IjE4MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjBmMGYwIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiNjY2MiIGZvbnQtc2l6ZT0iMTQiPuWbvueJh+WKoOi9veWksei0pTwvdGV4dD48L3N2Zz4="
+                            preview={{ mask: <><EyeOutlined style={{ marginRight: 6 }} />查看大图</> }}
+                          />
+                        ) : (
+                          <div style={{ textAlign: 'center', color: '#B0AEC8' }}>
+                            <PictureOutlined style={{ fontSize: 48, marginBottom: 8 }} />
+                            <div style={{ fontSize: 13 }}>暂无图片</div>
+                          </div>
+                        )}
+                      </div>
+                    }
+                    actions={
+                      user ? [
+                        <Popconfirm
+                          key="delete"
+                          title="确认删除这条信息？"
+                          description="删除后无法恢复"
+                          onConfirm={() => handleDelete(item.id)}
+                          okText="删除"
+                          cancelText="取消"
+                          okButtonProps={{ danger: true }}
+                        >
+                          <Tooltip title="删除">
+                            <DeleteOutlined style={{ color: '#EF4444', fontSize: 16 }} />
+                          </Tooltip>
+                        </Popconfirm>,
+                      ] : []
+                    }
+                  >
+                    <div style={{ padding: '16px 20px' }}>
+                      {/* 标题 */}
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        justifyContent: 'space-between',
+                        marginBottom: 8,
+                      }}>
+                        <Text strong style={{ fontSize: 16, color: '#1F2937', flex: 1, lineHeight: 1.4 }}>
+                          {item.title}
+                        </Text>
+                        <Tag
+                          color={item.item_type === 'found' ? 'green' : 'orange'}
+                          style={{
+                            borderRadius: 6,
+                            fontWeight: 600,
+                            fontSize: 11,
+                            marginLeft: 8,
+                            marginRight: 0,
+                            flexShrink: 0,
+                          }}
+                        >
+                          {item.item_type === 'found' ? '招领' : '寻物'}
+                        </Tag>
+                      </div>
+
+                      {/* 描述 */}
+                      <Paragraph
+                        ellipsis={{ rows: 2 }}
+                        style={{ color: '#6B7280', fontSize: 13, marginBottom: 12, lineHeight: 1.6 }}
+                      >
+                        {item.description}
+                      </Paragraph>
+
+                      {/* 信息行 */}
+                      <Space direction="vertical" size={6} style={{ width: '100%' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <EnvironmentOutlined style={{ color: '#9CA3AF', fontSize: 13 }} />
+                          <Text style={{ color: '#6B7280', fontSize: 13 }}>{item.location}</Text>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <UserOutlined style={{ color: '#9CA3AF', fontSize: 13 }} />
+                          <Text style={{ color: '#6B7280', fontSize: 13 }}>{item.contact_name}</Text>
+                          <Text style={{ color: '#D1D5DB', fontSize: 13 }}>|</Text>
+                          <PhoneOutlined style={{ color: '#9CA3AF', fontSize: 13 }} />
+                          <Text style={{ color: '#6B7280', fontSize: 13 }}>{item.contact_phone}</Text>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <CalendarOutlined style={{ color: '#9CA3AF', fontSize: 13 }} />
+                          <Text style={{ color: '#9CA3AF', fontSize: 12 }}>
+                            {new Date(item.created_at).toLocaleDateString('zh-CN', {
+                              year: 'numeric',
+                              month: '2-digit',
+                              day: '2-digit',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </Text>
+                        </div>
+                      </Space>
+                    </div>
+                  </Card>
+                </Badge.Ribbon>
+              </Col>
+            ))}
+          </Row>
         ) : (
-          <div className="empty-state">
-            <InboxOutlined />
-            <h3>{search || typeFilter !== 'all' ? '没有匹配的信息' : '暂无招领信息'}</h3>
-            <p>{search || typeFilter !== 'all' ? '试试其他搜索条件' : '还没有人发布招领信息'}</p>
-          </div>
+          <Card style={{ borderRadius: 16, border: '1px solid #ECEEF5', textAlign: 'center', padding: '60px 20px' }}>
+            <Empty
+              image={<InboxOutlined style={{ fontSize: 64, color: '#C4B5FD' }} />}
+              description={
+                <div>
+                  <Text strong style={{ fontSize: 16, display: 'block', marginBottom: 4 }}>
+                    {search || typeFilter !== 'all' ? '没有匹配的信息' : '暂无招领信息'}
+                  </Text>
+                  <Text type="secondary">
+                    {search || typeFilter !== 'all' ? '试试其他搜索条件' : '还没有人发布招领信息'}
+                  </Text>
+                </div>
+              }
+            />
+          </Card>
         )}
       </Spin>
     </div>

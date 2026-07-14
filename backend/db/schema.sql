@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS lost_items (
     contact_name  TEXT NOT NULL,
     contact_phone TEXT NOT NULL,
     item_type     TEXT NOT NULL CHECK (item_type IN ('lost', 'found')),
+    image_url     TEXT,
     created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -40,6 +41,17 @@ BEGIN
         WHERE table_name = 'lost_items' AND column_name = 'user_id'
     ) THEN
         ALTER TABLE lost_items ADD COLUMN user_id UUID REFERENCES users(id) ON DELETE SET NULL;
+    END IF;
+END $$;
+
+-- 为已存在的 lost_items 表补充缺失的 image_url 列
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'lost_items' AND column_name = 'image_url'
+    ) THEN
+        ALTER TABLE lost_items ADD COLUMN image_url TEXT;
     END IF;
 END $$;
 
@@ -86,3 +98,13 @@ INSERT INTO lost_items (title, description, location, contact_name, contact_phon
 ON CONFLICT DO NOTHING;
 
 SELECT '✅ 数据库初始化完成！' AS result;
+
+-- 7. 创建物品图片存储桶（需 Supabase Storage 支持）
+-- 注意：如果以下 SQL 不支持创建存储桶，请手动在 Supabase 控制台 → Storage 中
+-- 创建一个名为 item-images 的公开存储桶（Public bucket）
+DO $$
+BEGIN
+    -- 尝试创建存储桶（如果 storage extension 已启用）
+    -- 否则请手动创建：Supabase Dashboard → Storage → New Bucket → 名称: item-images → 勾选 Public bucket
+    RAISE NOTICE '请确保已在 Supabase Storage 中创建名为 item-images 的公开存储桶';
+END $$;

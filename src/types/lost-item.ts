@@ -17,6 +17,8 @@ export interface LostItem {
   contact_phone: string;
   /** 物品类型：lost=寻物启事, found=失物招领 */
   item_type: 'lost' | 'found';
+  /** 图片公开URL */
+  image_url?: string;
   /** 发布时间（ISO 8601 格式） */
   created_at: string;
 }
@@ -31,6 +33,8 @@ export interface CreateLostItemPayload {
   contact_name: string;
   contact_phone: string;
   item_type: 'lost' | 'found';
+  /** 图片公网URL（可选，通过 uploadImage 获取） */
+  image_url?: string;
 }
 
 /**

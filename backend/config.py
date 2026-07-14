@@ -36,6 +36,13 @@ class Config:
     SUPABASE_URL = os.environ.get('SUPABASE_URL', '')
     SUPABASE_KEY = os.environ.get('SUPABASE_KEY', '')
 
+    # Supabase 管理员密钥（用于绕过 Storage RLS 上传文件）
+    # 在 Supabase Dashboard → Settings → API → service_role key 中复制
+    SUPABASE_SERVICE_ROLE_KEY = os.environ.get('SUPABASE_SERVICE_ROLE_KEY', '')
+
+    # Supabase 存储桶名称（用于物品图片）
+    SUPABASE_STORAGE_BUCKET = os.environ.get('SUPABASE_STORAGE_BUCKET', 'item-images')
+
     # 调试模式
     DEBUG = os.environ.get('FLASK_DEBUG', 'True').lower() == 'true'
 
@@ -43,3 +50,8 @@ class Config:
     def is_supabase_enabled(cls) -> bool:
         """检查 Supabase 是否已正确配置"""
         return bool(cls.SUPABASE_URL and cls.SUPABASE_KEY)
+
+    @classmethod
+    def is_supabase_admin_enabled(cls) -> bool:
+        """检查是否配置了管理员密钥（用于绕过 Storage RLS）"""
+        return bool(cls.SUPABASE_URL and cls.SUPABASE_SERVICE_ROLE_KEY)

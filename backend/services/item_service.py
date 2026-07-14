@@ -96,6 +96,7 @@ class ItemService:
             'contact_phone': data['contact_phone'],
             'item_type': data['item_type'],
             'user_id': data.get('user_id'),
+            'image_url': data.get('image_url'),
         }
         result = supabase.table(TABLE_NAME).insert(payload).execute()
         return result.data[0]
@@ -146,6 +147,7 @@ class ItemService:
             'contact_name': data['contact_name'],
             'contact_phone': data['contact_phone'],
             'item_type': data['item_type'],
+            'image_url': data.get('image_url'),
             'created_at': datetime.now(timezone.utc).isoformat(),
         }
         self._items.append(item)

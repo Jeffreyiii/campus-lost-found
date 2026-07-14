@@ -54,6 +54,33 @@ async function request<T>(
 
 // ==================== 物品相关 API ====================
 
+/** 上传物品图片 POST /api/items/upload（需登录，multipart/form-data） */
+export async function uploadImage(file: File): Promise<ApiResponse<{ url: string }>> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const url = `${API_BASE_URL}/api/items/upload`;
+  const token = getStoredToken();
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: formData,
+  });
+
+  const result: ApiResponse<{ url: string }> = await response.json();
+
+  if (!response.ok) {
+    throw new Error(result.message || '上传失败');
+  }
+
+  return result;
+}
+
 /** 发布物品信息 POST /api/items（需登录） */
 export async function createLostItem(
   payload: CreateLostItemPayload

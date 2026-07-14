@@ -16,6 +16,8 @@ import {
   Col,
   Steps,
   Alert,
+  Upload,
+  Image,
 } from 'antd';
 import {
   InboxOutlined,
@@ -27,8 +29,13 @@ import {
   InfoCircleOutlined,
   FileTextOutlined,
   ArrowLeftOutlined,
+  PlusOutlined,
+  DeleteOutlined,
+  PictureOutlined,
+  LoadingOutlined,
 } from '@ant-design/icons';
-import { createLostItem } from '@/lib/api';
+import type { UploadFile, RcFile } from 'antd/es/upload/interface';
+import { createLostItem, uploadImage } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import Link from 'next/link';
 
@@ -38,6 +45,9 @@ export default function PublishPage() {
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
+  const [fileList, setFileList] = useState<UploadFile[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
   const { user } = useAuth();
   const router = useRouter();
 
@@ -47,6 +57,29 @@ export default function PublishPage() {
     router.push('/login');
     return null;
   }
+
+  /** 图片上传到后端 -> Supabase Storage */
+  const handleCustomUpload = async (options: any) => {
+    const { file, onSuccess, onError } = options as {
+      file: RcFile;
+      onSuccess: (body: any, xhr?: XMLHttpRequest) => void;
+      onError: (body: any) => void;
+    };
+
+    setUploading(true);
+    try {
+      const result = await uploadImage(file as File);
+      const url = result.data!.url;
+      setUploadedUrl(url);
+      onSuccess(result, undefined as any);
+      message.success('图片上传成功！');
+    } catch (err: any) {
+      onError(err);
+      message.error(err?.message || '图片上传失败');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const handleSubmit = async (values: any) => {
     setSubmitting(true);
@@ -58,6 +91,7 @@ export default function PublishPage() {
         contact_name: values.contact_name,
         contact_phone: values.contact_phone,
         item_type: values.item_type,
+        image_url: uploadedUrl || undefined,  // 直接用 state，避免 hidden 字段值丢失
       });
       message.success('发布成功！');
       router.push('/items');
@@ -66,6 +100,24 @@ export default function PublishPage() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const beforeUpload = (file: RcFile) => {
+    const isImage = file.type.startsWith('image/');
+    if (!isImage) {
+      message.error('只能上传图片文件！');
+      return Upload.LIST_IGNORE;
+    }
+    const isLt5M = file.size / 1024 / 1024 < 5;
+    if (!isLt5M) {
+      message.error('图片大小不能超过 5MB！');
+      return Upload.LIST_IGNORE;
+    }
+    return true; // 使用自定义上传
+  };
+
+  const handleRemove = () => {
+    setUploadedUrl(null);
   };
 
   return (
@@ -80,7 +132,7 @@ export default function PublishPage() {
           <SendOutlined style={{ marginRight: 10, color: '#6C5CE7' }} />
           发布招领信息
         </Title>
-        <Text type="secondary">填写物品详细信息，帮助他人找到失物</Text>
+        <Text type="secondary">填写物品详细信息，上传图片让失主更容易辨认</Text>
       </div>
 
       <Row gutter={[24, 24]}>
@@ -94,6 +146,7 @@ export default function PublishPage() {
               style={{ marginBottom: 32 }}
               items={[
                 { title: '填写信息', icon: <FileTextOutlined /> },
+                { title: '上传图片', icon: <PictureOutlined /> },
                 { title: '确认发布', icon: <SendOutlined /> },
               ]}
             />
@@ -105,98 +158,235 @@ export default function PublishPage() {
               size="large"
               initialValues={{ item_type: 'found' }}
             >
-              <Form.Item
-                name="item_type"
-                label={<span style={{ fontWeight: 600 }}>信息类型</span>}
-                rules={[{ required: true }]}
-              >
-                <Select
-                  options={[
-                    { value: 'found', label: '🔍 失物招领（捡到了物品）' },
-                    { value: 'lost', label: '📢 寻物启事（丢失了物品）' },
+              {/* ---- Step 0: 基本信息（始终渲染，只控制显隐） ---- */}
+              <div style={{ display: currentStep === 0 ? 'block' : 'none' }}>
+                <Form.Item
+                  name="item_type"
+                  label={<span style={{ fontWeight: 600 }}>信息类型</span>}
+                  rules={[{ required: true }]}
+                >
+                  <Select
+                    options={[
+                      { value: 'found', label: '🔍 失物招领（捡到了物品）' },
+                      { value: 'lost', label: '📢 寻物启事（丢失了物品）' },
+                    ]}
+                  />
+                </Form.Item>
+
+                <Form.Item
+                  name="title"
+                  label={<span style={{ fontWeight: 600 }}>物品名称</span>}
+                  rules={[{ required: true, message: '请输入物品名称' }]}
+                >
+                  <Input
+                    prefix={<InboxOutlined style={{ color: '#A0A0B8' }} />}
+                    placeholder="例如：黑色钱包、校园卡"
+                    maxLength={50}
+                    showCount
+                  />
+                </Form.Item>
+
+                <Form.Item
+                  name="description"
+                  label={<span style={{ fontWeight: 600 }}>详细描述</span>}
+                  rules={[{ required: true, message: '请描述物品特征' }]}
+                >
+                  <Input.TextArea
+                    placeholder="描述物品的颜色、品牌、特征等，越详细越好"
+                    rows={4}
+                    maxLength={500}
+                    showCount
+                  />
+                </Form.Item>
+
+                <Row gutter={16}>
+                  <Col xs={24} sm={12}>
+                    <Form.Item
+                      name="location"
+                      label={<span style={{ fontWeight: 600 }}>地点</span>}
+                      rules={[{ required: true, message: '请输入地点' }]}
+                    >
+                      <Input
+                        prefix={<EnvironmentOutlined style={{ color: '#A0A0B8' }} />}
+                        placeholder="捡到/丢失的地点"
+                      />
+                    </Form.Item>
+                  </Col>
+                  <Col xs={24} sm={12}>
+                    <Form.Item
+                      name="contact_name"
+                      label={<span style={{ fontWeight: 600 }}>联系人</span>}
+                      rules={[{ required: true, message: '请输入联系人' }]}
+                    >
+                      <Input
+                        prefix={<UserOutlined style={{ color: '#A0A0B8' }} />}
+                        placeholder="您的姓名或昵称"
+                      />
+                    </Form.Item>
+                  </Col>
+                </Row>
+
+                <Form.Item
+                  name="contact_phone"
+                  label={<span style={{ fontWeight: 600 }}>联系电话</span>}
+                  rules={[
+                    { required: true, message: '请输入联系电话' },
+                    { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号' },
                   ]}
-                />
-              </Form.Item>
+                >
+                  <Input
+                    prefix={<PhoneOutlined style={{ color: '#A0A0B8' }} />}
+                    placeholder="手机号码"
+                  />
+                </Form.Item>
 
-              <Form.Item
-                name="title"
-                label={<span style={{ fontWeight: 600 }}>物品名称</span>}
-                rules={[{ required: true, message: '请输入物品名称' }]}
-              >
-                <Input
-                  prefix={<InboxOutlined style={{ color: '#A0A0B8' }} />}
-                  placeholder="例如：黑色钱包、校园卡"
-                  maxLength={50}
-                  showCount
-                />
-              </Form.Item>
-
-              <Form.Item
-                name="description"
-                label={<span style={{ fontWeight: 600 }}>详细描述</span>}
-                rules={[{ required: true, message: '请描述物品特征' }]}
-              >
-                <Input.TextArea
-                  placeholder="描述物品的颜色、品牌、特征等"
-                  rows={4}
-                  maxLength={500}
-                  showCount
-                />
-              </Form.Item>
-
-              <Row gutter={16}>
-                <Col xs={24} sm={12}>
-                  <Form.Item
-                    name="location"
-                    label={<span style={{ fontWeight: 600 }}>地点</span>}
-                    rules={[{ required: true, message: '请输入地点' }]}
+                <Divider />
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <Button
+                    type="primary"
+                    onClick={() => form.validateFields().then(() => setCurrentStep(1)).catch(() => { })}
+                    size="large"
+                    style={{ borderRadius: 10, height: 44 }}
                   >
-                    <Input
-                      prefix={<EnvironmentOutlined style={{ color: '#A0A0B8' }} />}
-                      placeholder="捡到/丢失的地点"
-                    />
-                  </Form.Item>
-                </Col>
-                <Col xs={24} sm={12}>
-                  <Form.Item
-                    name="contact_name"
-                    label={<span style={{ fontWeight: 600 }}>联系人</span>}
-                    rules={[{ required: true, message: '请输入联系人' }]}
+                    下一步 &rarr;
+                  </Button>
+                </div>
+              </div>
+
+              {/* ---- Step 1: 上传图片（始终渲染） ---- */}
+              <div className="animate-fade-in" style={{ display: currentStep === 1 ? 'block' : 'none' }}>
+                <div style={{
+                  background: '#F8F7FF',
+                  borderRadius: 16,
+                  padding: 28,
+                  textAlign: 'center',
+                  border: '2px dashed #C4B5FD',
+                }}>
+                  <PictureOutlined style={{ fontSize: 48, color: '#8B5CF6', marginBottom: 16, display: 'block' }} />
+                  <Text strong style={{ fontSize: 16, display: 'block', marginBottom: 8 }}>
+                    上传物品图片（选填）
+                  </Text>
+                  <Text type="secondary" style={{ display: 'block', marginBottom: 20 }}>
+                    清晰的照片能让失主更快辨认出物品
+                  </Text>
+
+                  <Upload
+                    listType="picture-card"
+                    maxCount={1}
+                    fileList={fileList}
+                    beforeUpload={beforeUpload}
+                    customRequest={handleCustomUpload}
+                    onChange={({ fileList: newList }) => setFileList(newList)}
+                    onRemove={handleRemove}
+                    accept="image/jpeg,image/png,image/gif,image/webp"
                   >
-                    <Input
-                      prefix={<UserOutlined style={{ color: '#A0A0B8' }} />}
-                      placeholder="您的姓名或昵称"
-                    />
-                  </Form.Item>
-                </Col>
-              </Row>
+                    {fileList.length < 1 && (
+                      <div>
+                        {uploading ? <LoadingOutlined /> : <PlusOutlined />}
+                        <div style={{ marginTop: 8 }}>{uploading ? '上传中...' : '上传图片'}</div>
+                      </div>
+                    )}
+                  </Upload>
 
-              <Form.Item
-                name="contact_phone"
-                label={<span style={{ fontWeight: 600 }}>联系电话</span>}
-                rules={[
-                  { required: true, message: '请输入联系电话' },
-                  { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号' },
-                ]}
-              >
-                <Input
-                  prefix={<PhoneOutlined style={{ color: '#A0A0B8' }} />}
-                  placeholder="手机号码"
-                />
-              </Form.Item>
+                  {uploadedUrl && (
+                    <div style={{ marginTop: 12 }}>
+                      <Tag color="success" style={{ borderRadius: 6 }}>
+                        图片已上传成功
+                      </Tag>
+                    </div>
+                  )}
+                </div>
 
-              <Button
-                type="primary"
-                htmlType="submit"
-                loading={submitting}
-                block
-                size="large"
-                icon={<SendOutlined />}
-                className="btn-gradient-primary"
-                style={{ height: 48, fontSize: 16, marginTop: 8 }}
-              >
-                确认发布
-              </Button>
+                <Divider />
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Button
+                    onClick={() => setCurrentStep(0)}
+                    size="large"
+                    style={{ borderRadius: 10, height: 44 }}
+                  >
+                    &larr; 上一步
+                  </Button>
+                  <Button
+                    type="primary"
+                    onClick={() => setCurrentStep(2)}
+                    size="large"
+                    style={{ borderRadius: 10, height: 44 }}
+                  >
+                    下一步 &rarr;
+                  </Button>
+                </div>
+              </div>
+
+              {/* ---- Step 2: 确认发布（始终渲染） ---- */}
+              <div className="animate-fade-in" style={{ display: currentStep === 2 ? 'block' : 'none' }}>
+                {/* 预览卡片 */}
+                <div style={{
+                  background: '#F9FAFB',
+                  borderRadius: 16,
+                  padding: 24,
+                  marginBottom: 24,
+                }}>
+                  <Title level={5} style={{ fontWeight: 700, marginBottom: 16 }}>
+                    信息预览
+                  </Title>
+                  {uploadedUrl && (
+                    <div style={{ marginBottom: 16 }}>
+                      <Image
+                        src={uploadedUrl}
+                        alt="物品图片"
+                        style={{ maxHeight: 200, borderRadius: 12 }}
+                        fallback="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE1MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjBmMGYwIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiNjY2MiIGZvbnQtc2l6ZT0iMTQiPuWbvueJh+WKoOi9veWksei0pTwvdGV4dD48L3N2Zz4="
+                      />
+                    </div>
+                  )}
+                  <Row gutter={[16, 12]}>
+                    <Col span={12}>
+                      <Text type="secondary">类型：</Text>
+                      <Text strong>
+                        {form.getFieldValue('item_type') === 'found' ? '🔍 失物招领' : '📢 寻物启事'}
+                      </Text>
+                    </Col>
+                    <Col span={12}>
+                      <Text type="secondary">物品：</Text>
+                      <Text strong>{form.getFieldValue('title')}</Text>
+                    </Col>
+                    <Col span={12}>
+                      <Text type="secondary">地点：</Text>
+                      <Text strong>{form.getFieldValue('location')}</Text>
+                    </Col>
+                    <Col span={12}>
+                      <Text type="secondary">联系人：</Text>
+                      <Text strong>{form.getFieldValue('contact_name')}</Text>
+                    </Col>
+                    <Col span={24}>
+                      <Text type="secondary">描述：</Text>
+                      <Text>{form.getFieldValue('description')}</Text>
+                    </Col>
+                  </Row>
+                </div>
+
+                <Divider />
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Button
+                    onClick={() => setCurrentStep(1)}
+                    size="large"
+                    style={{ borderRadius: 10, height: 44 }}
+                  >
+                    &larr; 上一步
+                  </Button>
+                  <Button
+                    type="primary"
+                    htmlType="submit"
+                    loading={submitting}
+                    size="large"
+                    icon={<SendOutlined />}
+                    className="btn-gradient-primary"
+                    style={{ height: 48, fontSize: 16, borderRadius: 10 }}
+                  >
+                    确认发布
+                  </Button>
+                </div>
+              </div>
             </Form>
           </Card>
         </Col>
@@ -213,7 +403,7 @@ export default function PublishPage() {
                 {[
                   { num: '01', title: '选择类型', desc: '捡到物品选"失物招领"，丢失选"寻物启事"' },
                   { num: '02', title: '填写信息', desc: '尽量详细描述物品特征，方便失主辨认' },
-                  { num: '03', title: '留下联系方式', desc: '方便他人联系您，信息会进行安全保护' },
+                  { num: '03', title: '上传图片', desc: '清晰照片能大大提高找回成功率' },
                   { num: '04', title: '确认发布', desc: '检查无误后点击发布，信息将公开展示' },
                 ].map((step) => (
                   <div key={step.num} style={{ display: 'flex', gap: 12 }}>
@@ -253,5 +443,38 @@ export default function PublishPage() {
         </Col>
       </Row>
     </div>
+  );
+}
+
+// 简单的 Tag 组件（避免引入不必要的依赖）
+function Tag({ color, children, style }: { color: string; children: React.ReactNode; style?: React.CSSProperties }) {
+  const colorMap: Record<string, string> = {
+    success: '#D1FAE5',
+    warning: '#FEF3C7',
+    error: '#FEE2E2',
+    default: '#F3F4F6',
+  };
+  const textMap: Record<string, string> = {
+    success: '#059669',
+    warning: '#D97706',
+    error: '#DC2626',
+    default: '#374151',
+  };
+
+  return (
+    <span
+      style={{
+        display: 'inline-block',
+        padding: '4px 12px',
+        borderRadius: 6,
+        fontSize: 13,
+        fontWeight: 600,
+        background: colorMap[color] || colorMap.default,
+        color: textMap[color] || textMap.default,
+        ...style,
+      }}
+    >
+      {children}
+    </span>
   );
 }

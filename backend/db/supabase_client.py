@@ -39,6 +39,25 @@ def get_supabase_client() -> 'Client':
     return create_client(Config.SUPABASE_URL, Config.SUPABASE_KEY)
 
 
+@lru_cache(maxsize=1)
+def get_supabase_admin_client() -> 'Client':
+    """
+    获取 Supabase 管理员客户端（使用 service_role key，绕过 RLS）
+
+    用于 Storage 上传等需要管理员权限的操作。
+
+    Raises:
+        RuntimeError: 未配置 SUPABASE_SERVICE_ROLE_KEY 时抛出
+    """
+    if not Config.is_supabase_admin_enabled():
+        raise RuntimeError(
+            'Supabase admin 未配置，请在 backend/.env 中设置 SUPABASE_SERVICE_ROLE_KEY'
+        )
+
+    from supabase import create_client
+    return create_client(Config.SUPABASE_URL, Config.SUPABASE_SERVICE_ROLE_KEY)
+
+
 def is_supabase_configured() -> bool:
     """判断 Supabase 环境变量是否已配置"""
     return Config.is_supabase_enabled()
