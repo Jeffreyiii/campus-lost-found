@@ -195,7 +195,7 @@ export default function GuidePage() {
         description={
           <Paragraph style={{ fontSize: 13, lineHeight: 1.8, marginBottom: 0, color: '#4B5563' }}>
             首次使用？建议先浏览<Link href="/items" style={{ color: '#6C5CE7', fontWeight: 600 }}>招领信息</Link>页面了解当前有哪些失物。
-            确定需要发布时，点击导航栏的<Text strong>"发布信息"</Text>即可开始。
+            确定需要发布时，点击导航栏的<Text strong>发布信息</Text>即可开始。
             如有任何疑问或建议，欢迎联系平台管理员。
           </Paragraph>
         }
