@@ -5,7 +5,7 @@ import type { UserInfo } from '@/types/user';
  * API 基础地址
  * 优先读取环境变量，开发环境默认指向 Flask 后端
  */
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '';
 
 /** 从 localStorage 读取 token（供非组件上下文场景使用） */
 function getStoredToken(): string | null {
