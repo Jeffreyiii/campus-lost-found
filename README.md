@@ -1,4 +1,8 @@
 > **线上部署 URL**：[http://a65376ec7025494aa99db97149135615.codebuddy.cloudstudio.run](http://a65376ec7025494aa99db97149135615.codebuddy.cloudstudio.run)
+>
+> **Vercel 部署**（境外服务器，国内无法访问）：`https://campus-lost-found1.vercel.app`  
+> 由于 Vercel 域名属于境外服务器，国内手机热点、WiFi 均无法访问，可通过本地视频验证项目前后端完整可运行。  
+> 可通过项目 `screenshots/` 目录下的演示视频和部署截图进行验证。
 
 # 校园失物招领系统
 
