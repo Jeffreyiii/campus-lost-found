@@ -1,0 +1,10 @@
+node_modules
+.next
+.env.local
+.env
+backend/
+screenshots/
+.git
+.gitignore
+*.md
+.playwright-cli

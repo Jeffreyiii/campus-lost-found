@@ -36,3 +36,7 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
+
+# 部署临时文件
+deploy-temp/
+.playwright-cli/
