@@ -1,6 +1,6 @@
-# 校园失物招领系统
+> **线上部署 URL**：[http://a65376ec7025494aa99db97149135615.codebuddy.cloudstudio.run](http://a65376ec7025494aa99db97149135615.codebuddy.cloudstudio.run)
 
-> **线上地址**：[http://95df76e1814644b19b5f08576dd7e0d7.codebuddy.cloudstudio.run](http://95df76e1814644b19b5f08576dd7e0d7.codebuddy.cloudstudio.run)
+# 校园失物招领系统
 
 基于 **Next.js 14 (App Router)** + **Flask** + **Supabase** 全栈校园失物招领平台。支持物品发布 / 图片上传 / 评论互动 / 状态标记，已部署可直接访问。
 
